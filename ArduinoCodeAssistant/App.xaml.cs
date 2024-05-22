@@ -1,4 +1,5 @@
-﻿using ArduinoCodeAssistant.ViewModels;
+﻿using ArduinoCodeAssistant.Services;
+using ArduinoCodeAssistant.ViewModels;
 using ArduinoCodeAssistant.Views;
 using Microsoft.Extensions.DependencyInjection;
 using System.Windows;
@@ -22,6 +23,7 @@ namespace ArduinoCodeAssistant
         private void ConfigureServices(IServiceCollection services)
         {
             services.AddSingleton<MainWindowViewModel>();
+            services.AddSingleton<ArduinoCommunication>();
         }
 
         protected override void OnStartup(StartupEventArgs e)
