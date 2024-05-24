@@ -24,6 +24,7 @@ namespace ArduinoCodeAssistant
         {
             services.AddSingleton<MainWindowViewModel>();
             services.AddSingleton<ArduinoCommunication>();
+            services.AddSingleton<ChatService>();
         }
 
         protected override void OnStartup(StartupEventArgs e)
