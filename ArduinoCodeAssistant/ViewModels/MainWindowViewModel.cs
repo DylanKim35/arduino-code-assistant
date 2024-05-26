@@ -62,13 +62,12 @@ namespace ArduinoCodeAssistant.ViewModels
             }
         }
 
-        public bool _findArduinoFlag = true;
-        private ICommand? _detectArduinoButtonClickCommand;
-        public ICommand DetectArduinoButtonClickCommand =>
-            _detectArduinoButtonClickCommand ??= new RelayCommand<object>(async (o) =>
+        private bool _detectArduinoFlag = true;
+        private ICommand? _detectArduinoCommand;
+        public ICommand DetectArduinoCommand =>
+            _detectArduinoCommand ??= new RelayCommand<object>(async (o) =>
             {
-                _findArduinoFlag = false;
-                CommandManager.InvalidateRequerySuggested();
+                _detectArduinoFlag = false;
                 ArduinoPortStatus = "기기 탐색 중...";
                 ArduinoNameStatus = "";
 
@@ -94,10 +93,35 @@ namespace ArduinoCodeAssistant.ViewModels
                     ArduinoNameStatus = "-";
                 }
 
-                _findArduinoFlag = true;
+                _detectArduinoFlag = true;
+                CommandManager.InvalidateRequerySuggested();
+            }, (o) => _detectArduinoFlag);
+
+
+        private bool _compileAndUploadCodeFlag = true;
+        private ICommand? _compileAndUploadCodeCommand;
+        public ICommand CompileAndUploadCodeCommand =>
+            _compileAndUploadCodeCommand ??= new RelayCommand<object>(async (o) =>
+            {
+                _compileAndUploadCodeFlag = false;
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
+
+                var saveCodeToSketchFileTask = _arduinoService.UploadCodeAsync(OutputMessage.Code);
+                if (await Task.WhenAny(saveCodeToSketchFileTask, timeoutTask) == saveCodeToSketchFileTask)
+                {
+
+                }
+                else
+                {
+                    throw new Exception("타임아웃");
+                }
+
+                _compileAndUploadCodeFlag = true;
                 CommandManager.InvalidateRequerySuggested();
 
-            }, (o) => _findArduinoFlag);
+            }, (o) => _compileAndUploadCodeFlag);
+
+
 
         public bool SendChatButtonEnable(object param)
         {

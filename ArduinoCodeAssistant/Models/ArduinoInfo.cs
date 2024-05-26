@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -39,10 +40,51 @@ namespace ArduinoCodeAssistant.Models
             }
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string? name = null)
+        private string? _fqbn;
+        public string? Fqbn
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+            get => _fqbn;
+            set
+            {
+                if (value != _fqbn)
+                {
+                    _fqbn = value;
+                    OnPropertyChanged();
+                }
+            }
         }
+
+        private string? _core;
+        public string? Core
+        {
+            get => _core;
+            set
+            {
+                if (value != _core)
+                {
+                    _core = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public void SetAllPropertiesToNull()
+        {
+            Port = null;
+            Name = null;
+            Fqbn = null;
+            Core = null;
+        }
+
+        //public bool ValidateProperties()
+        //{
+        //    return Port != null && Name != null && Fqbn != null && Core != null;
+        //}
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string? name = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
     }
 }

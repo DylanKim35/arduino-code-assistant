@@ -59,7 +59,7 @@
             <Button
                 Margin="0,0,30,0"
                 Padding="10"
-                Command="{Binding DetectArduinoButtonClickCommand}"
+                Command="{Binding DetectArduinoCommand}"
                 Content="아두이노 감지"
                 DockPanel.Dock="Right" />
         </DockPanel>
@@ -225,7 +225,8 @@
                         DockPanel.Dock="Right" />
                     <Button
                         Padding="10"
-                        Content="컴파일 및 통신"
+                        Command="{Binding CompileAndUploadCodeCommand}"
+                        Content="컴파일 및 업로드"
                         IsEnabled="{Binding ElementName=AutoRequestCommunicationChk, Path=IsChecked, Converter={StaticResource InverseBooleanConverter}}" />
                 </DockPanel>
                 <TextBox
