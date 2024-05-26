@@ -101,7 +101,7 @@
                         AcceptsReturn="True"
                         DockPanel.Dock="Left"
                         ScrollViewer.VerticalScrollBarVisibility="Auto"
-                        Text="{Binding InputMessage.Message, UpdateSourceTrigger=PropertyChanged}"
+                        Text="{Binding RequestingMessage, UpdateSourceTrigger=PropertyChanged}"
                         TextWrapping="Wrap" />
 
                 </DockPanel>
@@ -172,7 +172,7 @@
                             AcceptsReturn="True"
                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
                             ScrollViewer.VerticalScrollBarVisibility="Auto"
-                            Text="{Binding OutputMessage.Code}" />
+                            Text="{Binding ReceivedCode, UpdateSourceTrigger=PropertyChanged}" />
                     </DockPanel>
                     <DockPanel Grid.Column="2">
                         <TextBlock
@@ -185,7 +185,7 @@
                             AcceptsReturn="True"
                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
                             ScrollViewer.VerticalScrollBarVisibility="Auto"
-                            Text="{Binding OutputMessage.Description}" />
+                            Text="{Binding ReceivedDescription, UpdateSourceTrigger=PropertyChanged}" />
                     </DockPanel>
                     <StackPanel
                         Grid.Row="1"
@@ -225,7 +225,7 @@
                         DockPanel.Dock="Right" />
                     <Button
                         Padding="10"
-                        Command="{Binding CompileAndUploadCodeCommand}"
+                        Command="{Binding UploadCodeCommand}"
                         Content="컴파일 및 업로드"
                         IsEnabled="{Binding ElementName=AutoRequestCommunicationChk, Path=IsChecked, Converter={StaticResource InverseBooleanConverter}}" />
                 </DockPanel>

@@ -14,9 +14,11 @@ namespace ArduinoCodeAssistant.Services
     public class ChatService
     {
         private readonly IOpenAIService _openAiService;
+        private readonly ChatRequest _chatRequest;
 
-        public ChatService()
+        public ChatService(ChatRequest chatRequest)
         {
+            _chatRequest = chatRequest;
             var openAiService = new OpenAIService(new OpenAiOptions()
             {
                 ApiKey = "sk-proj-XnyMkLcbZr09wOqabAlxT3BlbkFJY4sDm0IwiqI41mDzrxT1"
@@ -24,8 +26,9 @@ namespace ArduinoCodeAssistant.Services
             _openAiService = openAiService;
         }
 
-        public async Task<string> SendMessage(ChatRequest chatRequest)
+        public async Task<string> SendMessage(string message)
         {
+            _chatRequest.Message = message; // 추가한 부분 @김영민
             try
             {
                 var completionResult = await _openAiService.ChatCompletion.CreateCompletion(new ChatCompletionCreateRequest
@@ -38,7 +41,7 @@ namespace ArduinoCodeAssistant.Services
                             "형식은 다음과 같습니다.\n" +
                             "{\"code\": \"[아두이노 코드]\", \"description\": \"[코드에 대한 설명]\"}"
                             ),
-                        ChatMessage.FromUser(chatRequest.Message)
+                        ChatMessage.FromUser(message)
                     },
                     Model = OpenAI.ObjectModels.Models.Gpt_4o,
                     MaxTokens = 1000

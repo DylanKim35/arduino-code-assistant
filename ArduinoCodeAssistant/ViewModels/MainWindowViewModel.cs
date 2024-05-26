@@ -14,26 +14,25 @@ namespace ArduinoCodeAssistant.ViewModels
 {
     class MainWindowViewModel : INotifyPropertyChanged
     {
-        private readonly ChatService _chatService;
-
-        public ChatRequest InputMessage { get; set; } = new ChatRequest();
-
-        public ChatResponse OutputMessage { get; set; } = new ChatResponse();
-        public RelayCommand<object> SendChatMessageCommand { get; set; }
-
-        public bool ChatFlag = true;
-
         private readonly ArduinoService _arduinoService;
         private readonly ArduinoInfo _arduinoInfo;
-        public MainWindowViewModel(ArduinoService arduinoService, ChatService chatService, ArduinoInfo arduinoInfo)
+        private readonly ChatService _chatService;
+        private readonly ChatResponse _chatResponse;
+
+        public MainWindowViewModel(ArduinoService arduinoService,
+            ArduinoInfo arduinoInfo,
+            ChatService chatService,
+            ChatResponse chatResponse)
         {
             _arduinoService = arduinoService;
-            _chatService = chatService;
             _arduinoInfo = arduinoInfo;
-
-            SendChatMessageCommand = new RelayCommand<object>(SendChatMessageAsync, SendChatButtonEnable);
+            _chatService = chatService;
+            _chatResponse = chatResponse;
         }
 
+        #region DetectArduino
+
+        // TODO: Delete this property
         private string _arduinoPortStatus;
         public string ArduinoPortStatus
         {
@@ -48,6 +47,7 @@ namespace ArduinoCodeAssistant.ViewModels
             }
         }
 
+        // TODO: Delete this property
         private string _arduinoNameStatus;
         public string ArduinoNameStatus
         {
@@ -68,6 +68,7 @@ namespace ArduinoCodeAssistant.ViewModels
             _detectArduinoCommand ??= new RelayCommand<object>(async (o) =>
             {
                 _detectArduinoFlag = false;
+                CommandManager.InvalidateRequerySuggested();
                 ArduinoPortStatus = "기기 탐색 중...";
                 ArduinoNameStatus = "";
 
@@ -97,71 +98,130 @@ namespace ArduinoCodeAssistant.ViewModels
                 CommandManager.InvalidateRequerySuggested();
             }, (o) => _detectArduinoFlag);
 
+        #endregion
 
-        private bool _compileAndUploadCodeFlag = true;
-        private ICommand? _compileAndUploadCodeCommand;
-        public ICommand CompileAndUploadCodeCommand =>
-            _compileAndUploadCodeCommand ??= new RelayCommand<object>(async (o) =>
+        #region UploadCode
+
+        // TODO: Replace exception throwing logic with logger
+        private bool _uploadCodeFlag = true;
+        private ICommand? _uploadCodeCommand;
+        public ICommand UploadCodeCommand =>
+            _uploadCodeCommand ??= new RelayCommand<object>(async (o) =>
             {
-                _compileAndUploadCodeFlag = false;
+                _uploadCodeFlag = false;
+                CommandManager.InvalidateRequerySuggested();
                 var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
 
-                var saveCodeToSketchFileTask = _arduinoService.UploadCodeAsync(OutputMessage.Code);
+                var saveCodeToSketchFileTask = _arduinoService.UploadCodeAsync(ReceivedCode);
                 if (await Task.WhenAny(saveCodeToSketchFileTask, timeoutTask) == saveCodeToSketchFileTask)
                 {
 
                 }
                 else
                 {
-                    throw new Exception("타임아웃");
+                    throw new Exception("기기 탐색 시간 초과");
                 }
 
-                _compileAndUploadCodeFlag = true;
+                _uploadCodeFlag = true;
                 CommandManager.InvalidateRequerySuggested();
 
-            }, (o) => _compileAndUploadCodeFlag);
+            }, (o) => _uploadCodeFlag);
 
+        #endregion
 
+        #region SendChatMessage
 
-        public bool SendChatButtonEnable(object param)
+        private string _receivedCode;
+        public string ReceivedCode
         {
-            return ChatFlag;
-        }
-
-        public async void SendChatMessageAsync(object param)
-        {
-            ChatFlag = false;
-            OutputMessage.Code = "응답을 기다리는 중...";
-            OutputMessage.Description = "응답을 기다리는 중...";
-
-            var response = await _chatService.SendMessage(InputMessage);
-            if (response != null)
+            get => _receivedCode;
+            set
             {
-                string jsonString = response.Replace("```json", "").Replace("```", "");
-                try
+                if (value != _receivedCode)
                 {
-                    var jsonResponse = JObject.Parse(jsonString);
-
-                    OutputMessage.Code = jsonResponse["code"]?.ToString() ?? "[Error] No response";
-                    OutputMessage.Description = jsonResponse["description"]?.ToString() ?? "[Error] No response";
-                }
-                catch (Exception ex)
-                {
-                    OutputMessage.Code = $"[Error] Invalid JSON: {ex.Message}";
-                    OutputMessage.Description = $"[Error] {jsonString}";
-                }
-                finally
-                {
-                    ChatFlag = true;
+                    _receivedCode = value;
+                    OnPropertyChanged();
                 }
             }
-            else
+        }
+
+        private string _receivedDescription;
+        public string ReceivedDescription
+        {
+            get => _receivedDescription;
+            set
             {
-                OutputMessage.Code = "[Error] No response";
-                OutputMessage.Description = "[Error] No response";
-                ChatFlag = true;
+                if (value != _receivedDescription)
+                {
+                    _receivedDescription = value;
+                    OnPropertyChanged();
+                }
             }
         }
+
+        private string _requestingMessage;
+        public string RequestingMessage
+        {
+            get => _requestingMessage;
+            set
+            {
+                if (value != _requestingMessage)
+                {
+                    _requestingMessage = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool _chatFlag = true;
+        private ICommand? _sendChatMessageCommand;
+        public ICommand SendChatMessageCommand =>
+            _sendChatMessageCommand ??= new RelayCommand<object>(async (o) =>
+            {
+                _chatFlag = false;
+                CommandManager.InvalidateRequerySuggested();
+                ReceivedCode = "응답을 기다리는 중...";
+                ReceivedDescription = "응답을 기다리는 중...";
+
+                // _chatRequest.Message는 기존에 의도하셨던 대로 SendMessage 내부에서 RequestingMessage로 수정되도록 만들었습니다. @김영민
+                var response = await _chatService.SendMessage(RequestingMessage);
+                if (response != null)
+                {
+                    string jsonString = response.Replace("```json", "").Replace("```", "");
+                    try
+                    {
+                        var jsonResponse = JObject.Parse(jsonString);
+
+                        string code = jsonResponse["code"]?.ToString() ?? "[Error] No response";
+                        string description = jsonResponse["description"]?.ToString() ?? "[Error] No response";
+
+                        _chatResponse.Code = code;
+                        ReceivedCode = code;
+                        _chatResponse.Description = description;
+                        ReceivedDescription = description;
+                    }
+                    catch (Exception ex)
+                    {
+                        ReceivedCode = $"[Error] Invalid JSON: {ex.Message}";
+                        ReceivedDescription = $"[Error] {jsonString}";
+                    }
+                    finally
+                    {
+                        _chatFlag = true;
+                        CommandManager.InvalidateRequerySuggested();
+                    }
+                }
+                else
+                {
+                    ReceivedCode = "[Error] No response";
+                    ReceivedDescription = "[Error] No response";
+                    _chatFlag = true;
+                    CommandManager.InvalidateRequerySuggested();
+                }
+
+            }, (o) => _chatFlag);
+
+        #endregion
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
