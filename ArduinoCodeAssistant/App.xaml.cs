@@ -3,6 +3,7 @@ using ArduinoCodeAssistant.Services;
 using ArduinoCodeAssistant.ViewModels;
 using ArduinoCodeAssistant.Views;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System.Windows;
 
 namespace ArduinoCodeAssistant
@@ -12,34 +13,38 @@ namespace ArduinoCodeAssistant
     /// </summary>
     public partial class App : Application
     {
-        private readonly ServiceProvider _serviceProvider;
-
-        public App()
-        {
-            var serviceCollection = new ServiceCollection();
-            ConfigureServices(serviceCollection);
-            _serviceProvider = serviceCollection.BuildServiceProvider();
-        }
+        public IServiceProvider? ServiceProvider { get; private set; }
 
         private void ConfigureServices(IServiceCollection services)
         {
+            services.AddSingleton<MainWindow>();
             services.AddSingleton<MainWindowViewModel>();
             services.AddSingleton<ArduinoService>();
             services.AddSingleton<ArduinoInfo>();
             services.AddSingleton<ChatService>();
             services.AddSingleton<ChatRequest>();
             services.AddSingleton<ChatResponse>();
+            services.AddSingleton(provider =>
+            {
+                var mainWindow = provider.GetRequiredService<MainWindow>();
+                return new LoggingService(mainWindow.LogRichTextBox, mainWindow.Dispatcher);
+            });
         }
 
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
 
-            var mainWindowViewModel = _serviceProvider.GetRequiredService<MainWindowViewModel>();
-            Current.MainWindow = new MainWindow
-            {
-                DataContext = mainWindowViewModel
-            };
+            var serviceCollection = new ServiceCollection();
+            ConfigureServices(serviceCollection);
+            ServiceProvider = serviceCollection.BuildServiceProvider();
+
+            var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
+            var mainWindowViewModel = ServiceProvider.GetRequiredService<MainWindowViewModel>();
+
+            Current.MainWindow = mainWindow;
+            Current.MainWindow.DataContext = mainWindowViewModel;
+
             Current.MainWindow.Show();
         }
     }

@@ -14,9 +14,11 @@ namespace ArduinoCodeAssistant.Services
     public class ArduinoService
     {
         private readonly ArduinoInfo _arduinoInfo;
-        public ArduinoService(ArduinoInfo arduinoInfo)
+        private readonly LoggingService _loggingService;
+        public ArduinoService(ArduinoInfo arduinoInfo, LoggingService loggingService)
         {
             _arduinoInfo = arduinoInfo;
+            _loggingService = loggingService;
         }
 
         public async Task<bool> DetectDeviceAsync()
@@ -27,54 +29,56 @@ namespace ArduinoCodeAssistant.Services
 
                 if (!File.Exists(@"C:\Program Files\Arduino CLI\arduino-cli.exe"))
                 {
-                    throw new Exception("Arduino CLI 파일 찾기 오류");
+                    throw new Exception("Arduino CLI 설치 파일을 찾을 수 없습니다.");
                 }
 
                 ManagementScope connectionScope = new ManagementScope();
                 SelectQuery serialQuery = new SelectQuery("SELECT * FROM Win32_SerialPort");
                 ManagementObjectSearcher searcher = new ManagementObjectSearcher(connectionScope, serialQuery);
-                try
+                foreach (ManagementObject item in searcher.Get())
                 {
-                    foreach (ManagementObject item in searcher.Get())
+                    string? queriedPort = item["DeviceID"].ToString();
+                    string? queriedName = item["Description"].ToString();
+
+                    if (queriedPort != null && queriedName != null && queriedName.Contains("Arduino"))
                     {
-                        string? queriedPort = item["DeviceID"].ToString();
-                        string? queriedName = item["Description"].ToString();
+                        _arduinoInfo.Port = queriedPort;
+                        _arduinoInfo.Name = queriedName;
 
-                        if (queriedPort != null && queriedName != null && queriedName.Contains("Arduino"))
+
+                        if (!ExtractFqbnAndCore(_arduinoInfo.Port, out string fqbn, out string core))
                         {
-                            _arduinoInfo.Port = queriedPort;
-                            _arduinoInfo.Name = queriedName;
+                            throw new Exception("fqbn 및 core 추출에 실패했습니다.");
+                        }
+                        _arduinoInfo.Fqbn = fqbn;
+                        _arduinoInfo.Core = core;
 
-
-                            if (!ExtractFqbnAndCore(_arduinoInfo.Port, out string fqbn, out string core))
-                            {
-                                throw new Exception("fqbn, core 추출 오류");
-                            }
-                            _arduinoInfo.Fqbn = fqbn;
-                            _arduinoInfo.Core = core;
-
+                        if (!RunArduinoCli("core list").Contains(core))
+                        {
+                            _loggingService.Log($"{_arduinoInfo.Name} 전용 필수 core 설치 중...");
+                            RunArduinoCli($"core install {core}");
                             if (!RunArduinoCli("core list").Contains(core))
                             {
-                                RunArduinoCli($"core install {core}");
+                                throw new Exception("core 설치에 실패했습니다.");
                             }
-
-                            return true;
+                            else
+                            {
+                                _loggingService.Log($"설치 완료.");
+                            }
                         }
+
+                        return true;
                     }
                 }
-                catch (ManagementException e)
-                {
-                }
-                _arduinoInfo.Port = null;
-                _arduinoInfo.Name = null;
                 return false;
             });
         }
 
         public async Task<bool> UploadCodeAsync(string sketchCode)
         {
-            return await Task.Run(() => {
-                
+            return await Task.Run(() =>
+            {
+
                 string port = _arduinoInfo.Port ?? throw new Exception("port는 null");
                 string fqbn = _arduinoInfo.Fqbn ?? throw new Exception("fqbn는 null");
 

@@ -18,21 +18,23 @@ namespace ArduinoCodeAssistant.ViewModels
         private readonly ArduinoInfo _arduinoInfo;
         private readonly ChatService _chatService;
         private readonly ChatResponse _chatResponse;
-
+        private readonly LoggingService _loggingService;
+        private bool _isCommandRunning = false;
         public MainWindowViewModel(ArduinoService arduinoService,
             ArduinoInfo arduinoInfo,
             ChatService chatService,
-            ChatResponse chatResponse)
+            ChatResponse chatResponse,
+            LoggingService loggingService)
         {
             _arduinoService = arduinoService;
             _arduinoInfo = arduinoInfo;
             _chatService = chatService;
             _chatResponse = chatResponse;
+            _loggingService = loggingService;
         }
 
         #region DetectArduino
 
-        // TODO: Delete this property
         private string _arduinoPortStatus;
         public string ArduinoPortStatus
         {
@@ -47,7 +49,6 @@ namespace ArduinoCodeAssistant.ViewModels
             }
         }
 
-        // TODO: Delete this property
         private string _arduinoNameStatus;
         public string ArduinoNameStatus
         {
@@ -62,53 +63,50 @@ namespace ArduinoCodeAssistant.ViewModels
             }
         }
 
-        private bool _detectArduinoFlag = true;
         private ICommand? _detectArduinoCommand;
         public ICommand DetectArduinoCommand =>
             _detectArduinoCommand ??= new RelayCommand<object>(async (o) =>
             {
-                _detectArduinoFlag = false;
+                _isCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
-                ArduinoPortStatus = "기기 탐색 중...";
+                ArduinoPortStatus = "";
                 ArduinoNameStatus = "";
-
-                var detectDeviceTask = _arduinoService.DetectDeviceAsync();
-                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
-
-                if (await Task.WhenAny(detectDeviceTask, timeoutTask) == detectDeviceTask)
+                _loggingService.Log("기기 탐색 시작...");
+                try
                 {
-                    if (detectDeviceTask.Result && _arduinoInfo.Port != null && _arduinoInfo.Name != null)
+                    if (await _arduinoService.DetectDeviceAsync())
                     {
-                        ArduinoPortStatus = _arduinoInfo.Port;
-                        ArduinoNameStatus = _arduinoInfo.Name;
+                        _loggingService.Log($"기기 탐색 성공.\n(Name: {_arduinoInfo.Name}, Port: {_arduinoInfo.Port}, FQBN: {_arduinoInfo.Fqbn}, Core: {_arduinoInfo.Core})", LoggingService.LogLevel.Completed);
                     }
                     else
                     {
-                        ArduinoPortStatus = "기기를 찾을 수 없습니다.";
-                        ArduinoNameStatus = "-";
+                        _loggingService.Log("아두이노 보드를 찾을 수 없습니다. 기기 연결 상태를 확인하세요.");
                     }
                 }
-                else
+                catch(Exception ex)
                 {
-                    ArduinoPortStatus = "기기 탐색 시간 초과";
-                    ArduinoNameStatus = "-";
+                    _loggingService.Log("기기 탐색 실패: ", LoggingService.LogLevel.Error, ex);
+                }
+                finally
+                {
+                    ArduinoPortStatus = _arduinoInfo.Port ?? "";
+                    ArduinoNameStatus = _arduinoInfo.Name ?? "";
+                    _isCommandRunning = false;
+                    CommandManager.InvalidateRequerySuggested();
                 }
 
-                _detectArduinoFlag = true;
-                CommandManager.InvalidateRequerySuggested();
-            }, (o) => _detectArduinoFlag);
+            }, (o) => !_isCommandRunning);
 
         #endregion
 
         #region UploadCode
 
         // TODO: Replace exception throwing logic with logger
-        private bool _uploadCodeFlag = true;
         private ICommand? _uploadCodeCommand;
         public ICommand UploadCodeCommand =>
             _uploadCodeCommand ??= new RelayCommand<object>(async (o) =>
             {
-                _uploadCodeFlag = false;
+                _isCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
                 var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
 
@@ -122,10 +120,10 @@ namespace ArduinoCodeAssistant.ViewModels
                     throw new Exception("기기 탐색 시간 초과");
                 }
 
-                _uploadCodeFlag = true;
+                _isCommandRunning = false;
                 CommandManager.InvalidateRequerySuggested();
 
-            }, (o) => _uploadCodeFlag);
+            }, (o) => !_isCommandRunning);
 
         #endregion
 
@@ -173,12 +171,11 @@ namespace ArduinoCodeAssistant.ViewModels
             }
         }
 
-        public bool _chatFlag = true;
         private ICommand? _sendChatMessageCommand;
         public ICommand SendChatMessageCommand =>
             _sendChatMessageCommand ??= new RelayCommand<object>(async (o) =>
             {
-                _chatFlag = false;
+                _isCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
                 ReceivedCode = "응답을 기다리는 중...";
                 ReceivedDescription = "응답을 기다리는 중...";
@@ -207,7 +204,7 @@ namespace ArduinoCodeAssistant.ViewModels
                     }
                     finally
                     {
-                        _chatFlag = true;
+                        _isCommandRunning = false;
                         CommandManager.InvalidateRequerySuggested();
                     }
                 }
@@ -215,11 +212,11 @@ namespace ArduinoCodeAssistant.ViewModels
                 {
                     ReceivedCode = "[Error] No response";
                     ReceivedDescription = "[Error] No response";
-                    _chatFlag = true;
+                    _isCommandRunning = false;
                     CommandManager.InvalidateRequerySuggested();
                 }
 
-            }, (o) => _chatFlag);
+            }, (o) => !_isCommandRunning);
 
         #endregion
 
