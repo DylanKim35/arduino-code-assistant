@@ -76,16 +76,12 @@ namespace ArduinoCodeAssistant.ViewModels
                 {
                     if (await _arduinoService.DetectDeviceAsync())
                     {
-                        _loggingService.Log($"기기 탐색 성공.\n(Name: {_arduinoInfo.Name}, Port: {_arduinoInfo.Port}, FQBN: {_arduinoInfo.Fqbn}, Core: {_arduinoInfo.Core})", LoggingService.LogLevel.Completed);
-                    }
-                    else
-                    {
-                        _loggingService.Log("아두이노 보드를 찾을 수 없습니다. 기기 연결 상태를 확인하세요.");
+                        _loggingService.Log($"작업 성공. (Name: {_arduinoInfo.Name}, Port: {_arduinoInfo.Port}, FQBN: {_arduinoInfo.Fqbn}, Core: {_arduinoInfo.Core})", LoggingService.LogLevel.Completed);
                     }
                 }
                 catch(Exception ex)
                 {
-                    _loggingService.Log("기기 탐색 실패: ", LoggingService.LogLevel.Error, ex);
+                    _loggingService.Log("작업 실패: ", LoggingService.LogLevel.Error, ex);
                 }
                 finally
                 {
@@ -108,20 +104,31 @@ namespace ArduinoCodeAssistant.ViewModels
             {
                 _isCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
-                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
-
-                var saveCodeToSketchFileTask = _arduinoService.UploadCodeAsync(ReceivedCode);
-                if (await Task.WhenAny(saveCodeToSketchFileTask, timeoutTask) == saveCodeToSketchFileTask)
+                try
                 {
-
+                    var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30));
+                    var saveCodeToSketchFileTask = _arduinoService.UploadCodeAsync(ReceivedCode);
+                    if (await Task.WhenAny(saveCodeToSketchFileTask, timeoutTask) == saveCodeToSketchFileTask)
+                    {
+                        if (await saveCodeToSketchFileTask)
+                        {
+                            _loggingService.Log("작업 성공.", LoggingService.LogLevel.Completed);
+                        }
+                    }
+                    else
+                    {
+                        throw new Exception("대기시간을 초과하였습니다.");
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    throw new Exception("기기 탐색 시간 초과");
+                    _loggingService.Log("작업 실패: ", LoggingService.LogLevel.Error, ex);
                 }
-
-                _isCommandRunning = false;
-                CommandManager.InvalidateRequerySuggested();
+                finally
+                {
+                    _isCommandRunning = false;
+                    CommandManager.InvalidateRequerySuggested();
+                }
 
             }, (o) => !_isCommandRunning);
 

@@ -42,6 +42,7 @@ namespace ArduinoCodeAssistant.Services
 
                     if (queriedPort != null && queriedName != null && queriedName.Contains("Arduino"))
                     {
+                        _loggingService.Log("기기 탐색 완료.");
                         _arduinoInfo.Port = queriedPort;
                         _arduinoInfo.Name = queriedName;
 
@@ -57,20 +58,13 @@ namespace ArduinoCodeAssistant.Services
                         {
                             _loggingService.Log($"{_arduinoInfo.Name} 전용 필수 core 설치 중...");
                             RunArduinoCli($"core install {core}");
-                            if (!RunArduinoCli("core list").Contains(core))
-                            {
-                                throw new Exception("core 설치에 실패했습니다.");
-                            }
-                            else
-                            {
-                                _loggingService.Log($"설치 완료.");
-                            }
+                            _loggingService.Log($"설치 완료.");
                         }
 
                         return true;
                     }
                 }
-                return false;
+                throw new Exception("아두이노 보드를 찾을 수 없습니다. 기기 연결 상태를 확인하세요.");
             });
         }
 
@@ -78,14 +72,18 @@ namespace ArduinoCodeAssistant.Services
         {
             return await Task.Run(() =>
             {
+                if (_arduinoInfo.Port == null || _arduinoInfo.Fqbn == null)
+                {
+                    throw new Exception("아두이노 정보를 불러올 수 없습니다.");
+                }
 
-                string port = _arduinoInfo.Port ?? throw new Exception("port는 null");
-                string fqbn = _arduinoInfo.Fqbn ?? throw new Exception("fqbn는 null");
-
+                string port = _arduinoInfo.Port;
+                string fqbn = _arduinoInfo.Fqbn;
 
                 string sketchFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TempSketch");
                 string sketchPath = Path.Combine(sketchFolder, "TempSketch.ino");
 
+                _loggingService.Log("스케치 파일 및 폴더 생성 시작...");
                 try
                 {
                     // 스케치 폴더 생성 (폴더가 존재하지 않는 경우에만 생성)
@@ -94,17 +92,18 @@ namespace ArduinoCodeAssistant.Services
                         Directory.CreateDirectory(sketchFolder);
                     }
                     File.WriteAllText(sketchPath, sketchCode);
-
-
                 }
                 catch
                 {
-                    throw new Exception("스케치 파일 생성 오류");
+                    throw new Exception("스케치 파일 및 폴더를 생성할 수 없습니다.");
                 }
-
-                RunArduinoCli($"compile --fqbn arduino:avr:uno \"{sketchFolder}\"");
-                RunArduinoCli($"upload -p {port} --fqbn {fqbn} \"{sketchFolder}\"");
-
+                _loggingService.Log("스케치 파일 및 폴더 생성 완료.");
+                _loggingService.Log("코드 컴파일 시작...");
+                RunArduinoCli($"compile -b {fqbn} {sketchFolder}");
+                _loggingService.Log("코드 컴파일 완료.");
+                _loggingService.Log("코드 업로드 시작...");
+                RunArduinoCli($"upload -p {port} -b {fqbn} {sketchFolder}");
+                _loggingService.Log("코드 업로드 완료.");
                 return true;
             });
         }
@@ -126,10 +125,10 @@ namespace ArduinoCodeAssistant.Services
             string error = process.StandardError.ReadToEnd();
             process.WaitForExit();
 
-            Debug.WriteLine(output);
+            //Debug.WriteLine(output);
             if (!string.IsNullOrEmpty(error))
             {
-                Debug.WriteLine("Error: " + error);
+                throw new Exception(error);
             }
 
             return output;

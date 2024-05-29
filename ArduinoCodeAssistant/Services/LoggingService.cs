@@ -38,7 +38,7 @@ namespace ArduinoCodeAssistant.Services
                 AppendText(logMessage, GetLogLevelColor(level));
                 if (ex != null)
                 {
-                    AppendText(ex.ToString(), GetLogLevelColor(LogLevel.Error));
+                    AppendText(ex.Message, GetLogLevelColor(LogLevel.Error));
                 }
             });
         }
