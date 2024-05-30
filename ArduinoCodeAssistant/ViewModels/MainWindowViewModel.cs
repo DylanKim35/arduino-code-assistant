@@ -185,14 +185,20 @@ namespace ArduinoCodeAssistant.ViewModels
             {
                 _isCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
-                ReceivedCode = "응답을 기다리는 중...";
-                ReceivedDescription = "응답을 기다리는 중...";
+                _loggingService.Log("응답을 기다리는 중...");
 
                 // _chatRequest.Message는 기존에 의도하셨던 대로 SendMessage 내부에서 RequestingMessage로 수정되도록 만들었습니다. @김영민
                 var response = await _chatService.SendMessage(RequestingMessage);
                 if (response != null)
                 {
-                    string jsonString = response.Replace("```json", "").Replace("```", "");
+                    int startIndex = response.IndexOf("```json");
+                    int endIndex = response.LastIndexOf("```");
+
+                    string jsonString = response;
+                    if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+                        jsonString = response.Substring(startIndex + 7, endIndex - (startIndex + 7));
+                    }
+
                     try
                     {
                         var jsonResponse = JObject.Parse(jsonString);
@@ -207,8 +213,7 @@ namespace ArduinoCodeAssistant.ViewModels
                     }
                     catch (Exception ex)
                     {
-                        ReceivedCode = $"[Error] Invalid JSON: {ex.Message}";
-                        ReceivedDescription = $"[Error] {jsonString}";
+                        _loggingService.Log("답변 형식 에러: ", LoggingService.LogLevel.Error, ex);
                     }
                     finally
                     {
@@ -218,8 +223,7 @@ namespace ArduinoCodeAssistant.ViewModels
                 }
                 else
                 {
-                    ReceivedCode = "[Error] No response";
-                    ReceivedDescription = "[Error] No response";
+                    _loggingService.Log("ChatCPT API로 부터 응답이 없습니다.", LoggingService.LogLevel.Error);
                     _isCommandRunning = false;
                     CommandManager.InvalidateRequerySuggested();
                 }
