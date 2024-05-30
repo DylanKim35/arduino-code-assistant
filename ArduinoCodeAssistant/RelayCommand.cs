@@ -1,14 +1,4 @@
-﻿/*
- * Original Code
- * https://forum.dotnetdev.kr/t/wpf-icommand/1035/2
- * modified by HGS
- */
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Input;
+﻿using System.Windows.Input;
 
 namespace ArduinoCodeAssistant
 {

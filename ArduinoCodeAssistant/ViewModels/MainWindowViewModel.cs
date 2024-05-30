@@ -104,6 +104,7 @@ namespace ArduinoCodeAssistant.ViewModels
             {
                 _isCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
+                _loggingService.Log("코드 컴파일 및 업로드 시작...");
                 try
                 {
                     var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30));
