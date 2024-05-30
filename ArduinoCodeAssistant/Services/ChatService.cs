@@ -39,7 +39,7 @@ namespace ArduinoCodeAssistant.Services
                         ChatMessage.FromSystem(
                             "다음 자연어 명령을 수행하는 아두이노 코드를 JSON 형식으로 작성해 주세요.\n" +
                             "형식은 다음과 같습니다.\n" +
-                            "{\"code\": \"[아두이노 코드]\", \"description\": \"[코드에 대한 설명]\"}"
+                            "{\"code\": \"[주석이 없는 아두이노 코드]\", \"description\": \"[코드의 라인 번호별 주석]\"}"
                             ),
                         ChatMessage.FromUser(message)
                     },
