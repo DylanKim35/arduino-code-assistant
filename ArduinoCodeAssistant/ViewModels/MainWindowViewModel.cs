@@ -1,13 +1,8 @@
 ﻿using ArduinoCodeAssistant.Models;
 using ArduinoCodeAssistant.Services;
 using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Input;
 
 namespace ArduinoCodeAssistant.ViewModels
@@ -20,6 +15,7 @@ namespace ArduinoCodeAssistant.ViewModels
         private readonly ChatResponse _chatResponse;
         private readonly LoggingService _loggingService;
         private bool _isCommandRunning = false;
+
         public MainWindowViewModel(ArduinoService arduinoService,
             ArduinoInfo arduinoInfo,
             ChatService chatService,
@@ -97,7 +93,6 @@ namespace ArduinoCodeAssistant.ViewModels
 
         #region UploadCode
 
-        // TODO: Replace exception throwing logic with logger
         private ICommand? _uploadCodeCommand;
         public ICommand UploadCodeCommand =>
             _uploadCodeCommand ??= new RelayCommand<object>(async (o) =>

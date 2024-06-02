@@ -3,7 +3,6 @@ using ArduinoCodeAssistant.Services;
 using ArduinoCodeAssistant.ViewModels;
 using ArduinoCodeAssistant.Views;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using System.Windows;
 
 namespace ArduinoCodeAssistant

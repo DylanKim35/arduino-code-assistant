@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Ports;
 using System.Linq;
 using System.Management;
 using System.Text;
@@ -60,12 +61,31 @@ namespace ArduinoCodeAssistant.Services
                             RunArduinoCli($"core install {core}");
                             _loggingService.Log($"설치 완료.");
                         }
-
+                        OpenSerialPort(_arduinoInfo.Port, 9600);
                         return true;
                     }
                 }
                 throw new Exception("아두이노 보드를 찾을 수 없습니다. 기기 연결 상태를 확인하세요.");
             });
+        }
+
+        private SerialPort _serialPort;
+        public event EventHandler<string> DataReceived;
+        private void OpenSerialPort(string portName, int baudRate)
+        {
+            _serialPort = new SerialPort(portName, baudRate);
+            _serialPort.DataReceived += OnDataReceived;
+
+        }
+
+        private void OnDataReceived(object sender, SerialDataReceivedEventArgs e)
+        {
+            StringBuilder sb = new StringBuilder();
+            while (_serialPort.BytesToRead > 0)
+            {
+                sb.Append(_serialPort.ReadExisting());
+            }
+            _loggingService.Log(sb.ToString());
         }
 
         public async Task<bool> UploadCodeAsync(string sketchCode)

@@ -200,7 +200,7 @@
                                 SyntaxHighlighting="C++"
                                 VerticalScrollBarVisibility="Auto"
                                 HorizontalScrollBarVisibility="Auto"
-                                helpers:TextEditorHelper.BindableText="{Binding ReceivedCode, UpdateSourceTrigger=PropertyChanged}" />
+                                helpers:TextEditorHelper.BindableText="{Binding ReceivedCode, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
                         </DockPanel>
                         <DockPanel Grid.Column="2">
                             <TextBlock
