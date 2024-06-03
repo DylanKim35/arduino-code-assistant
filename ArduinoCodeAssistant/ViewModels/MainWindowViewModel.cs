@@ -95,6 +95,7 @@ namespace ArduinoCodeAssistant.ViewModels
                 }
                 catch(Exception ex)
                 {
+                    _arduinoService.CloseSerialPort();
                     _loggingService.Log("작업 오류: ", LoggingService.LogLevel.Error, ex);
                 }
                 finally
@@ -140,6 +141,7 @@ namespace ArduinoCodeAssistant.ViewModels
                 }
                 catch (Exception ex)
                 {
+                    _arduinoService.CloseSerialPort();
                     _loggingService.Log("작업 오류: ", LoggingService.LogLevel.Error, ex);
                 }
                 finally

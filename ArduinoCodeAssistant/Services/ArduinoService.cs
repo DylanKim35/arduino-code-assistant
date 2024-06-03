@@ -85,19 +85,13 @@ namespace ArduinoCodeAssistant.Services
 
         }
 
-        private void CloseSerialPort()
+        public void CloseSerialPort()
         {
-            if(_serialConfig.SerialPort != null)
-            {
-                try
-                {
-                    _serialConfig.SerialPort.DataReceived -= OnDataReceived;
-                    _serialConfig.SerialPort.Close();
-                    _serialConfig.SerialPort.Dispose();
-                }
-                catch { }
-                _serialConfig.SerialPort = null;
-            }
+            if (_serialConfig.SerialPort != null)
+                _serialConfig.SerialPort.DataReceived -= OnDataReceived;
+            _serialConfig.SerialPort?.Close();
+            _serialConfig.SerialPort?.Dispose();
+            _serialConfig.SerialPort = null;
         }
 
         public void ChangeBaudRate(int baudRate)
