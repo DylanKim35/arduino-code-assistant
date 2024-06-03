@@ -89,9 +89,13 @@ namespace ArduinoCodeAssistant.Services
         {
             if(_serialConfig.SerialPort != null)
             {
-                _serialConfig.SerialPort.DataReceived -= OnDataReceived;
-                _serialConfig.SerialPort.Close();
-                _serialConfig.SerialPort.Dispose();
+                try
+                {
+                    _serialConfig.SerialPort.DataReceived -= OnDataReceived;
+                    _serialConfig.SerialPort.Close();
+                    _serialConfig.SerialPort.Dispose();
+                }
+                catch { }
                 _serialConfig.SerialPort = null;
             }
         }
