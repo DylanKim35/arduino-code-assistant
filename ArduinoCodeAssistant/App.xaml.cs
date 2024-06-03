@@ -20,13 +20,14 @@ namespace ArduinoCodeAssistant
             services.AddSingleton<MainWindowViewModel>();
             services.AddSingleton<ArduinoService>();
             services.AddSingleton<ArduinoInfo>();
+            services.AddSingleton<SerialConfig>();
             services.AddSingleton<ChatService>();
             services.AddSingleton<ChatRequest>();
             services.AddSingleton<ChatResponse>();
             services.AddSingleton(provider =>
             {
                 var mainWindow = provider.GetRequiredService<MainWindow>();
-                return new LoggingService(mainWindow.LogRichTextBox, mainWindow.Dispatcher);
+                return new LoggingService(mainWindow.LogRichTextBox, mainWindow.SerialRichTextBox, mainWindow.Dispatcher);
             });
         }
 

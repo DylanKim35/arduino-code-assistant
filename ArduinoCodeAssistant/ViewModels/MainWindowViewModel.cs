@@ -1,6 +1,7 @@
 ﻿using ArduinoCodeAssistant.Models;
 using ArduinoCodeAssistant.Services;
 using Newtonsoft.Json.Linq;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
@@ -11,6 +12,7 @@ namespace ArduinoCodeAssistant.ViewModels
     {
         private readonly ArduinoService _arduinoService;
         private readonly ArduinoInfo _arduinoInfo;
+        private readonly SerialConfig _serialConfig;
         private readonly ChatService _chatService;
         private readonly ChatResponse _chatResponse;
         private readonly LoggingService _loggingService;
@@ -18,15 +20,27 @@ namespace ArduinoCodeAssistant.ViewModels
 
         public MainWindowViewModel(ArduinoService arduinoService,
             ArduinoInfo arduinoInfo,
+            SerialConfig serialConfig,
             ChatService chatService,
             ChatResponse chatResponse,
             LoggingService loggingService)
         {
             _arduinoService = arduinoService;
             _arduinoInfo = arduinoInfo;
+            _serialConfig = serialConfig;
             _chatService = chatService;
             _chatResponse = chatResponse;
             _loggingService = loggingService;
+
+            #region SetBaudRate
+
+            BaudRates = new ObservableCollection<int>
+            {
+                300, 600, 750, 1200, 2400, 4800, 9600, 19200, 31250, 38400, 57600, 74880, 115200, 230400, 250000
+            };
+            BaudRateIndex = 6;  // default value: 9600
+
+            #endregion
         }
 
         #region DetectArduino
@@ -70,14 +84,18 @@ namespace ArduinoCodeAssistant.ViewModels
                 _loggingService.Log("기기 탐색 시작...");
                 try
                 {
-                    if (await _arduinoService.DetectDeviceAsync())
+                    if (await _arduinoService.DetectDeviceAndOpenPortAsync(BaudRate))
                     {
                         _loggingService.Log($"작업 성공. (Name: {_arduinoInfo.Name}, Port: {_arduinoInfo.Port}, FQBN: {_arduinoInfo.Fqbn}, Core: {_arduinoInfo.Core})", LoggingService.LogLevel.Completed);
+                    }
+                    else
+                    {
+                        throw new Exception("Method _arduinoService.DetectDeviceAndOpenPortAsync returned false");
                     }
                 }
                 catch(Exception ex)
                 {
-                    _loggingService.Log("작업 실패: ", LoggingService.LogLevel.Error, ex);
+                    _loggingService.Log("작업 오류: ", LoggingService.LogLevel.Error, ex);
                 }
                 finally
                 {
@@ -103,22 +121,26 @@ namespace ArduinoCodeAssistant.ViewModels
                 try
                 {
                     var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30));
-                    var saveCodeToSketchFileTask = _arduinoService.UploadCodeAsync(ReceivedCode);
+                    var saveCodeToSketchFileTask = _arduinoService.UploadCodeAsync(ReceivedCode, BaudRate);
                     if (await Task.WhenAny(saveCodeToSketchFileTask, timeoutTask) == saveCodeToSketchFileTask)
                     {
                         if (await saveCodeToSketchFileTask)
                         {
                             _loggingService.Log("작업 성공.", LoggingService.LogLevel.Completed);
                         }
+                        else
+                        {
+                            throw new Exception("Method _arduinoService.UploadCodeAsync returned false");
+                        }
                     }
                     else
                     {
-                        throw new Exception("대기시간을 초과하였습니다.");
+                        throw new Exception("최대 대기시간을 초과하였습니다.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    _loggingService.Log("작업 실패: ", LoggingService.LogLevel.Error, ex);
+                    _loggingService.Log("작업 오류: ", LoggingService.LogLevel.Error, ex);
                 }
                 finally
                 {
@@ -181,21 +203,20 @@ namespace ArduinoCodeAssistant.ViewModels
                 _isCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
                 _loggingService.Log("응답을 기다리는 중...");
-
-                // _chatRequest.Message는 기존에 의도하셨던 대로 SendMessage 내부에서 RequestingMessage로 수정되도록 만들었습니다. @김영민
-                var response = await _chatService.SendMessage(RequestingMessage);
-                if (response != null)
+                try
                 {
-                    int startIndex = response.IndexOf("```json");
-                    int endIndex = response.LastIndexOf("```");
-
-                    string jsonString = response;
-                    if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
-                        jsonString = response.Substring(startIndex + 7, endIndex - (startIndex + 7));
-                    }
-
-                    try
+                    var response = await _chatService.SendMessage(RequestingMessage);
+                    if (response != null)
                     {
+                        int startIndex = response.IndexOf("```json");
+                        int endIndex = response.LastIndexOf("```");
+
+                        string jsonString = response;
+                        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex)
+                        {
+                            jsonString = response.Substring(startIndex + 7, endIndex - (startIndex + 7));
+                        }
+
                         var jsonResponse = JObject.Parse(jsonString);
 
                         string code = jsonResponse["code"]?.ToString() ?? "[Error] No response";
@@ -205,25 +226,64 @@ namespace ArduinoCodeAssistant.ViewModels
                         ReceivedCode = code;
                         _chatResponse.Description = description;
                         ReceivedDescription = description;
+                        _loggingService.Log("작업 성공.", LoggingService.LogLevel.Completed);
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        _loggingService.Log("답변 형식 에러: ", LoggingService.LogLevel.Error, ex);
-                    }
-                    finally
-                    {
-                        _isCommandRunning = false;
-                        CommandManager.InvalidateRequerySuggested();
+                        throw new Exception("응답을 불러올 수 없습니다.");
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    _loggingService.Log("ChatCPT API로 부터 응답이 없습니다.", LoggingService.LogLevel.Error);
+                    _loggingService.Log("작업 오류: ", LoggingService.LogLevel.Error, ex);
+                }
+                finally
+                {
                     _isCommandRunning = false;
                     CommandManager.InvalidateRequerySuggested();
                 }
 
             }, (o) => !_isCommandRunning);
+
+        #endregion
+
+        #region ClearTextBox
+
+        private ICommand? _clearLogTextBoxCommand;
+        public ICommand ClearLogTextBoxCommand =>
+            _clearLogTextBoxCommand ??= new RelayCommand<object>(async (o) =>
+            {
+                _loggingService.ClearLogTextBox();
+            });
+
+        private ICommand? _clearSerialTextBoxCommand;
+        public ICommand ClearSerialTextBoxCommand =>
+            _clearSerialTextBoxCommand ??= new RelayCommand<object>(async (o) =>
+            {
+                _loggingService.ClearSerialTextBox();
+            });
+
+        #endregion
+
+        #region SetBaudRate
+
+        public ObservableCollection<int> BaudRates { get; set; }
+        private int BaudRate => BaudRates[_baudRateIndex];
+
+        private int _baudRateIndex;
+        public int BaudRateIndex
+        {
+            get => _baudRateIndex;
+            set
+            {
+                if (value != _baudRateIndex)
+                {
+                    _baudRateIndex = value;
+                    _arduinoService.ChangeBaudRate(BaudRate);
+                    OnPropertyChanged();
+                }
+            }
+        }
 
         #endregion
 

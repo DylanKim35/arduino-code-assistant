@@ -21,12 +21,14 @@ namespace ArduinoCodeAssistant.Services
             Error
         }
 
-        private readonly RichTextBox _richTextBox;
+        private readonly RichTextBox _logTextBox;
+        private readonly RichTextBox _serialTextBox;
         private readonly Dispatcher _dispatcher;
 
-        public LoggingService(RichTextBox richTextBox, Dispatcher dispatcher)
+        public LoggingService(RichTextBox logTextBox, RichTextBox serialTextBox, Dispatcher dispatcher)
         {
-            _richTextBox = richTextBox;
+            _logTextBox = logTextBox;
+            _serialTextBox = serialTextBox;
             _dispatcher = dispatcher;
         }
 
@@ -35,23 +37,45 @@ namespace ArduinoCodeAssistant.Services
             string logMessage = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{level}] {message}";
             _dispatcher.Invoke(() =>
             {
-                AppendText(logMessage, GetLogLevelColor(level));
+                AppendText(_logTextBox, logMessage, GetLogLevelColor(level));
                 if (ex != null)
                 {
-                    AppendText(ex.Message, GetLogLevelColor(LogLevel.Error));
+                    AppendText(_logTextBox, ex.Message, GetLogLevelColor(LogLevel.Error));
                 }
             });
         }
 
-        bool _isRichTextBoxEmpty = true;
-        private void AppendText(string text, Color color)
+        public void SerialLog(string message)
         {
-            if (_isRichTextBoxEmpty)
+            _dispatcher.Invoke(() =>
             {
-                TextRange textRange = new TextRange(_richTextBox.Document.ContentEnd, _richTextBox.Document.ContentEnd);
+                AppendText(_serialTextBox, message, GetLogLevelColor(LogLevel.Info));
+            });
+        }
+
+        public void ClearLogTextBox()
+        {
+            _dispatcher.Invoke(() =>
+            {
+                ClearText(_logTextBox);
+            });
+        }
+
+        public void ClearSerialTextBox()
+        {
+            _dispatcher.Invoke(() =>
+            {
+                ClearText(_serialTextBox);
+            });
+        }
+
+        private void AppendText(RichTextBox richTextBox, string text, Color color)
+        {
+            if (string.IsNullOrWhiteSpace(new TextRange(richTextBox.Document.ContentStart, richTextBox.Document.ContentEnd).Text))
+            {
+                TextRange textRange = new TextRange(richTextBox.Document.ContentEnd, richTextBox.Document.ContentEnd);
                 textRange.Text = text;
                 textRange.ApplyPropertyValue(TextElement.ForegroundProperty, new SolidColorBrush(color));
-                _isRichTextBoxEmpty = false;
             }
             else
             {
@@ -60,10 +84,13 @@ namespace ArduinoCodeAssistant.Services
                     Foreground = new SolidColorBrush(color)
                 };
                 var paragraph = new Paragraph(run);
-                _richTextBox.Document.Blocks.Add(paragraph);
+                richTextBox.Document.Blocks.Add(paragraph);
             }
+        }
 
-            _richTextBox.ScrollToEnd();
+        private void ClearText(RichTextBox richTextBox)
+        {
+            richTextBox.Document.Blocks.Clear();
         }
 
         private Color GetLogLevelColor(LogLevel level)

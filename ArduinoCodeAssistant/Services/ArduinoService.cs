@@ -9,23 +9,27 @@ using System.Management;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Documents;
+using System.Windows.Media.Animation;
 
 namespace ArduinoCodeAssistant.Services
 {
     public class ArduinoService
     {
         private readonly ArduinoInfo _arduinoInfo;
+        private readonly SerialConfig _serialConfig;
         private readonly LoggingService _loggingService;
-        public ArduinoService(ArduinoInfo arduinoInfo, LoggingService loggingService)
+        public ArduinoService(ArduinoInfo arduinoInfo, SerialConfig serialConfig, LoggingService loggingService)
         {
             _arduinoInfo = arduinoInfo;
+            _serialConfig = serialConfig;
             _loggingService = loggingService;
         }
 
-        public async Task<bool> DetectDeviceAsync()
+        public async Task<bool> DetectDeviceAndOpenPortAsync(int baudRate)
         {
             return await Task.Run(() =>
             {
+                CloseSerialPort();
                 _arduinoInfo.SetAllPropertiesToNull();
 
                 if (!File.Exists(@"C:\Program Files\Arduino CLI\arduino-cli.exe"))
@@ -43,7 +47,6 @@ namespace ArduinoCodeAssistant.Services
 
                     if (queriedPort != null && queriedName != null && queriedName.Contains("Arduino"))
                     {
-                        _loggingService.Log("기기 탐색 완료.");
                         _arduinoInfo.Port = queriedPort;
                         _arduinoInfo.Name = queriedName;
 
@@ -61,7 +64,7 @@ namespace ArduinoCodeAssistant.Services
                             RunArduinoCli($"core install {core}");
                             _loggingService.Log($"설치 완료.");
                         }
-                        OpenSerialPort(_arduinoInfo.Port, 9600);
+                        OpenSerialPort(_arduinoInfo.Port, baudRate);
                         return true;
                     }
                 }
@@ -69,29 +72,59 @@ namespace ArduinoCodeAssistant.Services
             });
         }
 
-        private SerialPort _serialPort;
         public event EventHandler<string> DataReceived;
+
         private void OpenSerialPort(string portName, int baudRate)
         {
-            _serialPort = new SerialPort(portName, baudRate);
-            _serialPort.DataReceived += OnDataReceived;
+            CloseSerialPort();
+            _serialConfig.SerialPort = new SerialPort(portName);
+            _serialConfig.SerialPort.Encoding = Encoding.UTF8;
+            _serialConfig.SerialPort.DataReceived += OnDataReceived;
+            _serialConfig.SerialPort.BaudRate = baudRate;
+            _serialConfig.SerialPort.Open();
 
+        }
+
+        private void CloseSerialPort()
+        {
+            if(_serialConfig.SerialPort != null)
+            {
+                _serialConfig.SerialPort.DataReceived -= OnDataReceived;
+                _serialConfig.SerialPort.Close();
+                _serialConfig.SerialPort.Dispose();
+                _serialConfig.SerialPort = null;
+            }
+        }
+
+        public void ChangeBaudRate(int baudRate)
+        {
+            if (_serialConfig.SerialPort != null)
+            {
+                _serialConfig.SerialPort.BaudRate = baudRate;
+            }
         }
 
         private void OnDataReceived(object sender, SerialDataReceivedEventArgs e)
         {
-            StringBuilder sb = new StringBuilder();
-            while (_serialPort.BytesToRead > 0)
+            if (_serialConfig.SerialPort == null) return;
+            try
             {
-                sb.Append(_serialPort.ReadExisting());
+                string line = _serialConfig.SerialPort.ReadLine();
+                if (line.EndsWith("\r"))
+                {
+                    line = line.Substring(0, line.Length - 1);
+                }
+                _loggingService.SerialLog(line);
             }
-            _loggingService.Log(sb.ToString());
+            catch { }
         }
 
-        public async Task<bool> UploadCodeAsync(string sketchCode)
+        public async Task<bool> UploadCodeAsync(string sketchCode, int baudRate)
         {
             return await Task.Run(() =>
             {
+                CloseSerialPort();
+
                 if (_arduinoInfo.Port == null || _arduinoInfo.Fqbn == null)
                 {
                     throw new Exception("아두이노 정보를 불러올 수 없습니다.");
@@ -124,6 +157,7 @@ namespace ArduinoCodeAssistant.Services
                 _loggingService.Log("코드 업로드 시작...");
                 RunArduinoCli($"upload -p {port} -b {fqbn} {sketchFolder}");
                 _loggingService.Log("코드 업로드 완료.");
+                OpenSerialPort(port, baudRate);
                 return true;
             });
         }
