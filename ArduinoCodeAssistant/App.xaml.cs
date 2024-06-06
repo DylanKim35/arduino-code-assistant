@@ -24,6 +24,8 @@ namespace ArduinoCodeAssistant
             services.AddSingleton<ChatService>();
             services.AddSingleton<ChatRequest>();
             services.AddSingleton<ChatResponse>();
+            services.AddSingleton<AudioRecorder>();
+            services.AddSingleton<WhisperService>();
             services.AddSingleton(provider =>
             {
                 var mainWindow = provider.GetRequiredService<MainWindow>();
