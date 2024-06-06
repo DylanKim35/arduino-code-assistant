@@ -16,6 +16,8 @@ namespace ArduinoCodeAssistant.ViewModels
         private readonly ChatService _chatService;
         private readonly ChatResponse _chatResponse;
         private readonly LoggingService _loggingService;
+        private readonly AudioRecorder _audioRecorder;
+        private readonly WhisperService _whisperService;
         private bool _isCommandRunning = false;
 
         public MainWindowViewModel(ArduinoService arduinoService,
@@ -23,7 +25,9 @@ namespace ArduinoCodeAssistant.ViewModels
             SerialConfig serialConfig,
             ChatService chatService,
             ChatResponse chatResponse,
-            LoggingService loggingService)
+            LoggingService loggingService,
+            AudioRecorder audioRecorder,
+            WhisperService whisperService)
         {
             _arduinoService = arduinoService;
             _arduinoInfo = arduinoInfo;
@@ -31,6 +35,8 @@ namespace ArduinoCodeAssistant.ViewModels
             _chatService = chatService;
             _chatResponse = chatResponse;
             _loggingService = loggingService;
+            _audioRecorder = audioRecorder;
+            _whisperService = whisperService;
 
             #region SetBaudRate
 
@@ -39,6 +45,8 @@ namespace ArduinoCodeAssistant.ViewModels
                 300, 600, 750, 1200, 2400, 4800, 9600, 19200, 31250, 38400, 57600, 74880, 115200, 230400, 250000
             };
             BaudRateIndex = 6;  // default value: 9600
+            _audioRecorder = audioRecorder;
+            _whisperService = whisperService;
 
             #endregion
         }
@@ -246,6 +254,35 @@ namespace ArduinoCodeAssistant.ViewModels
                 }
 
             }, (o) => !_isCommandRunning);
+
+        #endregion
+
+        #region RecordAudio
+
+        private bool _isRecord;
+
+        private ICommand? _recordAudioCommand;
+
+        public ICommand RecordAudioCommand =>
+            _recordAudioCommand ??= new RelayCommand<object>(async (o) =>
+            {
+                _isCommandRunning = false;
+
+                if (!_isRecord)
+                {
+                    _isRecord = true;
+                    _audioRecorder.StartRecording("tempRecord.mp3");
+                }
+                else
+                {
+                    await _audioRecorder.StopRecordingAsync();
+                    RequestingMessage = await _whisperService.GetTranscript(_audioRecorder.GetAudioFilePath());
+                    _isRecord = false;
+                }
+
+                _isCommandRunning = true;
+
+            }, (o) => true);
 
         #endregion
 
