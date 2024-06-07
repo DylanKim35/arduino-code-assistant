@@ -12,7 +12,6 @@ namespace ArduinoCodeAssistant.ViewModels
     {
         private readonly ArduinoService _arduinoService;
         private readonly ArduinoInfo _arduinoInfo;
-        private readonly SerialConfig _serialConfig;
         private readonly ChatService _chatService;
         private readonly ChatResponse _chatResponse;
         private readonly LoggingService _loggingService;
@@ -22,7 +21,6 @@ namespace ArduinoCodeAssistant.ViewModels
 
         public MainWindowViewModel(ArduinoService arduinoService,
             ArduinoInfo arduinoInfo,
-            SerialConfig serialConfig,
             ChatService chatService,
             ChatResponse chatResponse,
             LoggingService loggingService,
@@ -31,24 +29,13 @@ namespace ArduinoCodeAssistant.ViewModels
         {
             _arduinoService = arduinoService;
             _arduinoInfo = arduinoInfo;
-            _serialConfig = serialConfig;
             _chatService = chatService;
             _chatResponse = chatResponse;
             _loggingService = loggingService;
             _audioRecorder = audioRecorder;
             _whisperService = whisperService;
-
-            #region SetBaudRate
-
-            BaudRates = new ObservableCollection<int>
-            {
-                300, 600, 750, 1200, 2400, 4800, 9600, 19200, 31250, 38400, 57600, 74880, 115200, 230400, 250000
-            };
-            BaudRateIndex = 6;  // default value: 9600
             _audioRecorder = audioRecorder;
             _whisperService = whisperService;
-
-            #endregion
         }
 
         #region DetectArduino
@@ -89,21 +76,23 @@ namespace ArduinoCodeAssistant.ViewModels
                 CommandManager.InvalidateRequerySuggested();
                 ArduinoPortStatus = "";
                 ArduinoNameStatus = "";
-                _loggingService.Log("기기 탐색 시작...");
+                _arduinoInfo.SetAllPropertiesToNull();
+                _loggingService.Log("작업 시작...");
                 try
                 {
-                    if (await _arduinoService.DetectDeviceAndOpenPortAsync(BaudRate))
+                    if (await _arduinoService.DetectDeviceAsync())
                     {
-                        _loggingService.Log($"작업 성공. (Name: {_arduinoInfo.Name}, Port: {_arduinoInfo.Port}, FQBN: {_arduinoInfo.Fqbn}, Core: {_arduinoInfo.Core})", LoggingService.LogLevel.Completed);
+                        _loggingService.Log($"기기 탐색 성공. (Name: {_arduinoInfo.Name}, Port: {_arduinoInfo.Port}, FQBN: {_arduinoInfo.Fqbn}, Core: {_arduinoInfo.Core})");
                     }
                     else
                     {
                         throw new Exception("Method _arduinoService.DetectDeviceAndOpenPortAsync returned false");
                     }
+                    _arduinoService.OpenSerialPort(_arduinoInfo.Port, 9600);
+                    _loggingService.Log("작업 성공.", LoggingService.LogLevel.Completed);
                 }
                 catch(Exception ex)
                 {
-                    _arduinoService.CloseSerialPort();
                     _loggingService.Log("작업 오류: ", LoggingService.LogLevel.Error, ex);
                 }
                 finally
@@ -126,30 +115,23 @@ namespace ArduinoCodeAssistant.ViewModels
             {
                 _isCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
-                _loggingService.Log("코드 컴파일 및 업로드 시작...");
+                _loggingService.Log("작업 시작...");
+
                 try
                 {
-                    var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30));
-                    var saveCodeToSketchFileTask = _arduinoService.UploadCodeAsync(ReceivedCode, BaudRate);
-                    if (await Task.WhenAny(saveCodeToSketchFileTask, timeoutTask) == saveCodeToSketchFileTask)
+                    if (await _arduinoService.UploadCodeAsync(ReceivedCode))
                     {
-                        if (await saveCodeToSketchFileTask)
-                        {
-                            _loggingService.Log("작업 성공.", LoggingService.LogLevel.Completed);
-                        }
-                        else
-                        {
-                            throw new Exception("Method _arduinoService.UploadCodeAsync returned false");
-                        }
+                        _loggingService.Log("코드 컴파일 및 업로드 성공.");
                     }
                     else
                     {
-                        throw new Exception("최대 대기시간을 초과하였습니다.");
+                        throw new Exception("Method _arduinoService.UploadCodeAsync returned false");
                     }
+
+                    _loggingService.Log("작업 성공.", LoggingService.LogLevel.Completed);
                 }
                 catch (Exception ex)
                 {
-                    _arduinoService.CloseSerialPort();
                     _loggingService.Log("작업 오류: ", LoggingService.LogLevel.Error, ex);
                 }
                 finally
@@ -301,28 +283,6 @@ namespace ArduinoCodeAssistant.ViewModels
             {
                 _loggingService.ClearSerialTextBox();
             });
-
-        #endregion
-
-        #region SetBaudRate
-
-        public ObservableCollection<int> BaudRates { get; set; }
-        private int BaudRate => BaudRates[_baudRateIndex];
-
-        private int _baudRateIndex;
-        public int BaudRateIndex
-        {
-            get => _baudRateIndex;
-            set
-            {
-                if (value != _baudRateIndex)
-                {
-                    _baudRateIndex = value;
-                    _arduinoService.ChangeBaudRate(BaudRate);
-                    OnPropertyChanged();
-                }
-            }
-        }
 
         #endregion
 

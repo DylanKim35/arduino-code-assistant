@@ -41,7 +41,8 @@ namespace ArduinoCodeAssistant.Services
                             "\n다음 항목에 주의 해 주세요.\n" +
                             "- 아두이노 코드 작성 시 개행(줄띄움)도 신경 써 주세요.\n" +
                             "- 설명 텍스트는 '~니다'와 같은 경어체를 사용해 주세요.\n" +
-                            "- 정상적이지 않은 명령이라고 판단되면 code 및 description에 오류 메시지를 출력해 주세요.\n"
+                            "- 정상적이지 않은 명령이라고 판단되면 code 및 description에 오류 메시지를 출력해 주세요.\n" +
+                            "- 시리얼 통신이 필요한 경우, 보드레이트는 반드시 9600으로 설정해 주세요.\n"
                             ),
                         ChatMessage.FromUser(message)
                     },

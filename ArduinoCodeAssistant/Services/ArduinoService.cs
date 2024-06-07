@@ -25,86 +25,92 @@ namespace ArduinoCodeAssistant.Services
             _loggingService = loggingService;
         }
 
-        public async Task<bool> DetectDeviceAndOpenPortAsync(int baudRate)
+        public async Task<bool> DetectDeviceAsync()
         {
-            return await Task.Run(() =>
+            if (!File.Exists(@"C:\Program Files\Arduino CLI\arduino-cli.exe"))
             {
-                CloseSerialPort();
-                _arduinoInfo.SetAllPropertiesToNull();
+                throw new Exception("Arduino CLI 설치 파일을 찾을 수 없습니다.");
+            }
 
-                if (!File.Exists(@"C:\Program Files\Arduino CLI\arduino-cli.exe"))
-                {
-                    throw new Exception("Arduino CLI 설치 파일을 찾을 수 없습니다.");
-                }
+            ManagementScope connectionScope = new ManagementScope();
+            SelectQuery serialQuery = new SelectQuery("SELECT * FROM Win32_SerialPort");
+            ManagementObjectSearcher searcher = new ManagementObjectSearcher(connectionScope, serialQuery);
 
-                ManagementScope connectionScope = new ManagementScope();
-                SelectQuery serialQuery = new SelectQuery("SELECT * FROM Win32_SerialPort");
-                ManagementObjectSearcher searcher = new ManagementObjectSearcher(connectionScope, serialQuery);
+            bool deviceDetected = false;
+
+            var deviceDetectionTask = Task.Run(() =>
+            {
                 foreach (ManagementObject item in searcher.Get())
                 {
-                    string? queriedPort = item["DeviceID"].ToString();
-                    string? queriedName = item["Description"].ToString();
+                    string? queriedPort = item["DeviceID"]?.ToString();
+                    string? queriedName = item["Description"]?.ToString();
 
                     if (queriedPort != null && queriedName != null && queriedName.Contains("Arduino"))
                     {
                         _arduinoInfo.Port = queriedPort;
                         _arduinoInfo.Name = queriedName;
 
-
-                        if (!ExtractFqbnAndCore(_arduinoInfo.Port, out string fqbn, out string core))
-                        {
-                            throw new Exception("fqbn 및 core 추출에 실패했습니다.");
-                        }
-                        _arduinoInfo.Fqbn = fqbn;
-                        _arduinoInfo.Core = core;
-
-                        if (!RunArduinoCli("core list").Contains(core))
-                        {
-                            _loggingService.Log($"{_arduinoInfo.Name} 전용 필수 core 설치 중...");
-                            RunArduinoCli($"core install {core}");
-                            _loggingService.Log($"설치 완료.");
-                        }
-                        OpenSerialPort(_arduinoInfo.Port, baudRate);
                         return true;
                     }
                 }
-                throw new Exception("아두이노 보드를 찾을 수 없습니다. 기기 연결 상태를 확인하세요.");
+                return false;
             });
+
+            deviceDetected = await deviceDetectionTask;
+
+            if (!deviceDetected)
+            {
+                throw new Exception("아두이노 보드를 찾을 수 없습니다. 기기 연결 상태를 확인하세요.");
+            }
+
+            if (_arduinoInfo.Port != null && !await ExtractFqbnAndCoreAsync(_arduinoInfo.Port))
+            {
+                throw new Exception("fqbn 및 core 추출에 실패했습니다.");
+            }
+
+            string coreListOutput = await RunArduinoCliAsync("core list");
+            if (_arduinoInfo.Core != null && !coreListOutput.Contains(_arduinoInfo.Core))
+            {
+                _loggingService.Log($"{_arduinoInfo.Name} 전용 필수 core 설치 중...");
+                await RunArduinoCliAsync($"core install {_arduinoInfo.Core}");
+                _loggingService.Log("설치 완료.");
+            }
+
+            return true;
         }
 
         public event EventHandler<string> DataReceived;
 
-        private void OpenSerialPort(string portName, int baudRate)
+        public void OpenSerialPort(string? portName, int baudRate)
         {
-            CloseSerialPort();
-            _serialConfig.SerialPort = new SerialPort(portName);
+            if (_serialConfig.SerialPort != null || portName == null) return;
+
+            _serialConfig.SerialPort = new SerialPort();
             _serialConfig.SerialPort.Encoding = Encoding.UTF8;
             _serialConfig.SerialPort.DataReceived += OnDataReceived;
             _serialConfig.SerialPort.BaudRate = baudRate;
+            _serialConfig.SerialPort.PortName = portName;
             _serialConfig.SerialPort.Open();
 
+            _loggingService.Log($"시리얼 포트 개방 완료. (PortName: {_serialConfig.SerialPort.PortName}, BaudRate: {_serialConfig.SerialPort.BaudRate})");
         }
 
-        public void CloseSerialPort()
-        {
-            if (_serialConfig.SerialPort != null)
-                _serialConfig.SerialPort.DataReceived -= OnDataReceived;
-            _serialConfig.SerialPort?.Close();
-            _serialConfig.SerialPort?.Dispose();
-            _serialConfig.SerialPort = null;
-        }
+        //public void CloseSerialPort()
+        //{
+        //    if (_serialConfig.SerialPort == null) return;
 
-        public void ChangeBaudRate(int baudRate)
-        {
-            if (_serialConfig.SerialPort != null)
-            {
-                _serialConfig.SerialPort.BaudRate = baudRate;
-            }
-        }
+        //    _serialConfig.SerialPort.DataReceived -= OnDataReceived;
+        //    _serialConfig.SerialPort?.Close();
+        //    _serialConfig.SerialPort?.Dispose();
+        //    _serialConfig.SerialPort = null;
+
+        //    _loggingService.Log("시리얼 포트 폐쇄 완료.");
+        //}
 
         private void OnDataReceived(object sender, SerialDataReceivedEventArgs e)
         {
             if (_serialConfig.SerialPort == null) return;
+
             try
             {
                 string line = _serialConfig.SerialPort.ReadLine();
@@ -114,53 +120,44 @@ namespace ArduinoCodeAssistant.Services
                 }
                 _loggingService.SerialLog(line);
             }
-            catch { }
-        }
-
-        public async Task<bool> UploadCodeAsync(string sketchCode, int baudRate)
-        {
-            return await Task.Run(() =>
+            catch
             {
-                CloseSerialPort();
-
-                if (_arduinoInfo.Port == null || _arduinoInfo.Fqbn == null)
-                {
-                    throw new Exception("아두이노 정보를 불러올 수 없습니다.");
-                }
-
-                string port = _arduinoInfo.Port;
-                string fqbn = _arduinoInfo.Fqbn;
-
-                string sketchFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TempSketch");
-                string sketchPath = Path.Combine(sketchFolder, "TempSketch.ino");
-
-                _loggingService.Log("스케치 파일 및 폴더 생성 시작...");
-                try
-                {
-                    // 스케치 폴더 생성 (폴더가 존재하지 않는 경우에만 생성)
-                    if (!Directory.Exists(sketchFolder))
-                    {
-                        Directory.CreateDirectory(sketchFolder);
-                    }
-                    File.WriteAllText(sketchPath, sketchCode);
-                }
-                catch
-                {
-                    throw new Exception("스케치 파일 및 폴더를 생성할 수 없습니다.");
-                }
-                _loggingService.Log("스케치 파일 및 폴더 생성 완료.");
-                _loggingService.Log("코드 컴파일 시작...");
-                RunArduinoCli($"compile -b {fqbn} {sketchFolder}");
-                _loggingService.Log("코드 컴파일 완료.");
-                _loggingService.Log("코드 업로드 시작...");
-                RunArduinoCli($"upload -p {port} -b {fqbn} {sketchFolder}");
-                _loggingService.Log("코드 업로드 완료.");
-                OpenSerialPort(port, baudRate);
-                return true;
-            });
+                
+            }
         }
 
-        static string RunArduinoCli(string arguments)
+        public async Task<bool> UploadCodeAsync(string sketchCode)
+        {
+            if (_arduinoInfo.Port == null || _arduinoInfo.Fqbn == null)
+            {
+                throw new Exception("아두이노 정보를 불러올 수 없습니다.");
+            }
+
+            string port = _arduinoInfo.Port;
+            string fqbn = _arduinoInfo.Fqbn;
+
+            string sketchFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TempSketch");
+            string sketchPath = Path.Combine(sketchFolder, "TempSketch.ino");
+
+            _loggingService.Log("스케치 파일 및 폴더 생성 시작...");
+
+            if (!Directory.Exists(sketchFolder))
+            {
+                Directory.CreateDirectory(sketchFolder);
+            }
+            await File.WriteAllTextAsync(sketchPath, sketchCode);
+
+            _loggingService.Log("스케치 파일 및 폴더 생성 완료.");
+            _loggingService.Log("코드 컴파일 시작...");
+            await RunArduinoCliAsync($"compile -b {fqbn} {sketchFolder}");
+            _loggingService.Log("코드 컴파일 완료.");
+            _loggingService.Log("코드 업로드 시작...");
+            await RunArduinoCliAsync($"upload -p {port} -b {fqbn} {sketchFolder}");
+            _loggingService.Log("코드 업로드 완료.");
+            return true;
+        }
+
+        static async Task<string> RunArduinoCliAsync(string arguments)
         {
             ProcessStartInfo processStartInfo = new ProcessStartInfo(@"C:\Program Files\Arduino CLI\arduino-cli.exe", arguments)
             {
@@ -173,9 +170,13 @@ namespace ArduinoCodeAssistant.Services
             using Process process = new Process { StartInfo = processStartInfo };
 
             process.Start();
-            string output = process.StandardOutput.ReadToEnd();
-            string error = process.StandardError.ReadToEnd();
-            process.WaitForExit();
+            Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+            Task<string> errorTask = process.StandardError.ReadToEndAsync();
+
+            await process.WaitForExitAsync();
+
+            string output = await outputTask;
+            string error = await errorTask;
 
             //Debug.WriteLine(output);
             if (!string.IsNullOrEmpty(error))
@@ -186,14 +187,12 @@ namespace ArduinoCodeAssistant.Services
             return output;
         }
 
-        static bool ExtractFqbnAndCore(string port, out string fqbn, out string core)
+        async Task<bool> ExtractFqbnAndCoreAsync(string port)
         {
-            fqbn = "";
-            core = "";
             int fqbnIndex = -1;
             int coreIndex = -1;
 
-            string boardInfo = RunArduinoCli("board list");
+            string boardInfo = await RunArduinoCliAsync("board list");
             string[] lines = boardInfo.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
 
@@ -217,18 +216,18 @@ namespace ArduinoCodeAssistant.Services
                     string[] parts1 = fqbnPart.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                     if (parts1.Length > 0)
                     {
-                        fqbn = parts1[0];
+                        _arduinoInfo.Fqbn = parts1[0];
                     }
 
                     string corePart = line.Substring(coreIndex).Trim();
                     string[] parts2 = corePart.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                     if (parts2.Length > 0)
                     {
-                        core = parts2[0];
+                        _arduinoInfo.Core = parts2[0];
                     }
 
-                    if (!string.IsNullOrEmpty(fqbn) && !string.IsNullOrEmpty(core)) return true;
-                    else break;
+                    if (!string.IsNullOrEmpty(_arduinoInfo.Fqbn) && !string.IsNullOrEmpty(_arduinoInfo.Core))
+                        return true;
                 }
             }
             return false;

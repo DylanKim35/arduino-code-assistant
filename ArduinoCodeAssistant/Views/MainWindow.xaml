@@ -25,7 +25,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MinWidth="350" />
             <ColumnDefinition Width="auto" />
-            <ColumnDefinition Width="*" MinWidth="240" />
+            <ColumnDefinition Width="*" MinWidth="300" />
         </Grid.ColumnDefinitions>
         <DockPanel
             Grid.Row="0"
@@ -105,10 +105,9 @@
                     <Button
                         Margin="0,0,0,10"
                         Padding="10"
-                        Content="음성 인식 시작"
-                        DockPanel.Dock="Top" 
                         Command="{Binding RecordAudioCommand}"
-                        />
+                        Content="음성 인식 시작"
+                        DockPanel.Dock="Top" />
                     <TextBox
                         Padding="5"
                         AcceptsReturn="True"
@@ -153,7 +152,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" MinHeight="190" />
                 <RowDefinition Height="auto" />
-                <RowDefinition Height="*" MinHeight="60" />
+                <RowDefinition Height="*" MinHeight="110" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -296,7 +295,7 @@
                     <TextBlock
                         Margin="0,0,0,5"
                         DockPanel.Dock="Top"
-                        Text="시리얼 응답" />
+                        Text="시리얼 응답 (9600 Baud)" />
 
                     <RichTextBox
                         x:Name="SerialRichTextBox"
@@ -313,28 +312,15 @@
                         </RichTextBox.Resources>
                     </RichTextBox>
                 </DockPanel>
-                <StackPanel
+                <Button
                     Grid.Row="1"
                     Grid.Column="2"
-                    Margin="0,15,0,0"
+                    Margin="0,10,0,0"
+                    Padding="10"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    Orientation="Vertical">
-
-                    <Button
-                        Grid.Row="1"
-                        Grid.Column="2"
-                        Padding="10"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Command="{Binding ClearSerialTextBoxCommand}"
-                        Content="내용 지우기" />
-
-                    <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" Text="보드레이트:  " />
-                        <ComboBox ItemsSource="{Binding BaudRates}" SelectedIndex="{Binding BaudRateIndex}" />
-                    </StackPanel>
-                </StackPanel>
+                    Command="{Binding ClearSerialTextBoxCommand}"
+                    Content="내용 지우기" />
             </Grid>
         </Grid>
     </Grid>
