@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using System.Xml.Linq;
 
 namespace ArduinoCodeAssistant.ViewModels
 {
@@ -12,6 +13,7 @@ namespace ArduinoCodeAssistant.ViewModels
     {
         private readonly ArduinoService _arduinoService;
         private readonly ArduinoInfo _arduinoInfo;
+        private readonly SavingService _savingService;
         private readonly ChatService _chatService;
         private readonly ChatResponse _chatResponse;
         private readonly LoggingService _loggingService;
@@ -21,6 +23,7 @@ namespace ArduinoCodeAssistant.ViewModels
 
         public MainWindowViewModel(ArduinoService arduinoService,
             ArduinoInfo arduinoInfo,
+            SavingService savingService,
             ChatService chatService,
             ChatResponse chatResponse,
             LoggingService loggingService,
@@ -29,6 +32,7 @@ namespace ArduinoCodeAssistant.ViewModels
         {
             _arduinoService = arduinoService;
             _arduinoInfo = arduinoInfo;
+            _savingService = savingService;
             _chatService = chatService;
             _chatResponse = chatResponse;
             _loggingService = loggingService;
@@ -36,6 +40,11 @@ namespace ArduinoCodeAssistant.ViewModels
             _whisperService = whisperService;
             _audioRecorder = audioRecorder;
             _whisperService = whisperService;
+
+            _textStatesDictionary = _savingService.TextStatesDictionary;
+            TextStatesCollection = _savingService.TextStatesCollection;
+            _savingService.InitializeTextStates();
+            SelectedTextState = TextStatesCollection.Last();
         }
 
         #region DetectArduino
@@ -119,7 +128,7 @@ namespace ArduinoCodeAssistant.ViewModels
 
                 try
                 {
-                    if (await _arduinoService.UploadCodeAsync(ReceivedCode))
+                    if (await _arduinoService.UploadCodeAsync(GeneratedCode))
                     {
                         _loggingService.Log("코드 컴파일 및 업로드 성공.");
                     }
@@ -146,30 +155,64 @@ namespace ArduinoCodeAssistant.ViewModels
 
         #region SendChatMessage
 
-        private string _receivedCode;
-        public string ReceivedCode
+        private string _boardStatus;
+        public string BoardStatus
         {
-            get => _receivedCode;
+            get => _boardStatus;
             set
             {
-                if (value != _receivedCode)
+                _boardStatus = value;
+                OnPropertyChanged();
+                if (SelectedTextState != null)
+                    _savingService.SaveTextStatesAsync(SelectedTextState.Id, GeneratedTag, BoardStatus, RequestingMessage, GeneratedCode, GeneratedDescription).ConfigureAwait(false);
+            }
+        }
+
+        private string _generatedCode;
+        public string GeneratedCode
+        {
+            get => _generatedCode;
+            set
+            {
+                if (value != _generatedCode)
                 {
-                    _receivedCode = value;
+                    _generatedCode = value;
                     OnPropertyChanged();
+                    if (SelectedTextState != null)
+                        _savingService.SaveTextStatesAsync(SelectedTextState.Id, GeneratedTag, BoardStatus, RequestingMessage, GeneratedCode, GeneratedDescription).ConfigureAwait(false);
                 }
             }
         }
 
-        private string _receivedDescription;
-        public string ReceivedDescription
+        private string _generatedDescription;
+        public string GeneratedDescription
         {
-            get => _receivedDescription;
+            get => _generatedDescription;
             set
             {
-                if (value != _receivedDescription)
+                if (value != _generatedDescription)
                 {
-                    _receivedDescription = value;
+                    _generatedDescription = value;
                     OnPropertyChanged();
+                    if (SelectedTextState != null)
+                        _savingService.SaveTextStatesAsync(SelectedTextState.Id, GeneratedTag, BoardStatus, RequestingMessage, GeneratedCode, GeneratedDescription).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private string _generatedTag;
+        public string GeneratedTag
+        {
+            get => _generatedTag;
+            set
+            {
+                if (value != _generatedTag)
+                {
+                    _generatedTag = value;
+                    OnPropertyChanged();
+                    if (SelectedTextState != null)
+                        _savingService.SaveTextStatesAsync(SelectedTextState.Id, GeneratedTag, BoardStatus, RequestingMessage, GeneratedCode, GeneratedDescription).ConfigureAwait(false);
+
                 }
             }
         }
@@ -184,6 +227,8 @@ namespace ArduinoCodeAssistant.ViewModels
                 {
                     _requestingMessage = value;
                     OnPropertyChanged();
+                    if (SelectedTextState != null)
+                        _savingService.SaveTextStatesAsync(SelectedTextState.Id, GeneratedTag, BoardStatus, RequestingMessage, GeneratedCode, GeneratedDescription).ConfigureAwait(false);
                 }
             }
         }
@@ -194,6 +239,7 @@ namespace ArduinoCodeAssistant.ViewModels
             {
                 _isCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
+                AddEmptyTemplateCommand.Execute(null);
                 _loggingService.Log("응답을 기다리는 중...");
                 try
                 {
@@ -213,11 +259,13 @@ namespace ArduinoCodeAssistant.ViewModels
 
                         string code = jsonResponse["code"]?.ToString() ?? "[Error] No response";
                         string description = jsonResponse["description"]?.ToString() ?? "[Error] No response";
+                        string tag = jsonResponse["tag"]?.ToString() ?? "[Error] No response";
 
                         _chatResponse.Code = code;
-                        ReceivedCode = code;
+                        GeneratedCode = code;
                         _chatResponse.Description = description;
-                        ReceivedDescription = description;
+                        GeneratedDescription = description;
+                        GeneratedTag = tag;
                         _loggingService.Log("작업 성공.", LoggingService.LogLevel.Completed);
                     }
                     else
@@ -283,6 +331,105 @@ namespace ArduinoCodeAssistant.ViewModels
             {
                 _loggingService.ClearSerialTextBox();
             });
+
+        #endregion
+
+        #region TextStateIO
+
+        private readonly Dictionary<Guid, TextState> _textStatesDictionary;
+        public ObservableCollection<TextState> TextStatesCollection { get; }
+
+        private TextState _selectedTextState;
+        public TextState SelectedTextState
+        {
+            get { return _selectedTextState; }
+            set
+            {
+                if (_selectedTextState != value)
+                {
+                    _selectedTextState = value;
+                    OnPropertyChanged();
+                    LoadTextState();
+                }
+            }
+        }
+
+        private void LoadTextState()
+        {
+            if (_textStatesDictionary != null && _textStatesDictionary.ContainsKey(SelectedTextState.Id))
+            {
+                var context = _textStatesDictionary[SelectedTextState.Id];
+                _generatedTag = context.GeneratedTag;
+                _boardStatus = context.BoardStatus;
+                _requestingMessage = context.RequestingMessage;
+                _generatedCode = context.GeneratedCode;
+                _generatedDescription = context.GeneratedDescription;
+
+                OnPropertyChanged(nameof(GeneratedTag));
+                OnPropertyChanged(nameof(BoardStatus));
+                OnPropertyChanged(nameof(RequestingMessage));
+                OnPropertyChanged(nameof(GeneratedCode));
+                OnPropertyChanged(nameof(GeneratedDescription));
+            }
+        }
+
+        private ICommand? _addEmptyTemplateCommand;
+        public ICommand AddEmptyTemplateCommand =>
+            _addEmptyTemplateCommand ??= new RelayCommand<object>((o) =>
+            {
+                var emptyTagItem = TextStatesCollection.FirstOrDefault(ts => ts.GeneratedTag == "");
+
+                if (emptyTagItem != null)
+                {
+                    SelectedTextState = emptyTagItem;
+                }
+                else
+                {
+                    _savingService.AddEmptyTemplate();
+                    SelectedTextState = TextStatesCollection.Last();
+                    SetAllSavableTextBoxToEmpty();
+                }
+            });
+
+        private ICommand? _removeTemplateCommand;
+        public ICommand RemoveTemplateCommand =>
+            _removeTemplateCommand ??= new RelayCommand<object>(async (o) =>
+            {
+                if (SelectedTextState != null)
+                {
+                    int index = TextStatesCollection.IndexOf(SelectedTextState);
+                    if (index > 0)
+                    {
+                        SelectedTextState = TextStatesCollection[index - 1];
+                    }
+                    else if (TextStatesCollection.Count > 1)
+                    {
+                        SelectedTextState = TextStatesCollection[index + 1];
+                    }
+                    else
+                    {
+                        _savingService.AddEmptyTemplate();
+                        SetAllSavableTextBoxToEmpty();
+                        SelectedTextState = TextStatesCollection[index + 1];
+                    }
+                    await _savingService.RemoveTextStatesAsync(TextStatesCollection[index].Id);
+                }
+            });
+
+        private void SetAllSavableTextBoxToEmpty()
+        {
+            _generatedTag = "";
+            _boardStatus = "";
+            _requestingMessage = "";
+            _generatedCode = "";
+            _generatedDescription = "";
+
+            OnPropertyChanged(nameof(GeneratedTag));
+            OnPropertyChanged(nameof(BoardStatus));
+            OnPropertyChanged(nameof(RequestingMessage));
+            OnPropertyChanged(nameof(GeneratedCode));
+            OnPropertyChanged(nameof(GeneratedDescription));
+        }
 
         #endregion
 

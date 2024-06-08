@@ -21,6 +21,7 @@ namespace ArduinoCodeAssistant
             services.AddSingleton<ArduinoService>();
             services.AddSingleton<ArduinoInfo>();
             services.AddSingleton<SerialConfig>();
+            services.AddSingleton<SavingService>();
             services.AddSingleton<ChatService>();
             services.AddSingleton<ChatRequest>();
             services.AddSingleton<ChatResponse>();

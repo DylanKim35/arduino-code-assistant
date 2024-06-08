@@ -93,7 +93,7 @@
                         Padding="5"
                         AcceptsReturn="True"
                         ScrollViewer.VerticalScrollBarVisibility="Auto"
-                        Text="텍스트"
+                        Text="{Binding BoardStatus, UpdateSourceTrigger=PropertyChanged}"
                         TextWrapping="Wrap" />
                 </DockPanel>
                 <DockPanel Grid.Row="1" Margin="10,0,10,10">
@@ -198,14 +198,33 @@
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             Orientation="Horizontal">
-                            <TextBox x:Name="FileName" Width="200" Padding="5" VerticalAlignment="Center" />
-                            <ComboBox Margin="10 0 0 0" VerticalContentAlignment="Center" Width="200" SelectedIndex="0">
-                                <ComboBoxItem>일반적인 길이로</ComboBoxItem>
-                                <ComboBoxItem>자세하게</ComboBoxItem>
-                                <ComboBoxItem>간략하게</ComboBoxItem>
-                            </ComboBox>
-                            <Button Width="40" Margin="20 0 0 0" Content="+" VerticalContentAlignment="Center" FontSize="14"/>
-                            <Button Width="40" Margin="10 0 0 0" Content="-" VerticalContentAlignment="Center" FontSize="14"/>
+                            <TextBox
+                                Width="200"
+                                Padding="5"
+                                MaxLength="20"
+                                VerticalAlignment="Center"
+                                Text="{Binding GeneratedTag, UpdateSourceTrigger=PropertyChanged}" />
+                            <ComboBox
+                                Width="200"
+                                Margin="10,0,0,0"
+                                VerticalContentAlignment="Center"
+                                DisplayMemberPath="GeneratedTag"
+                                ItemsSource="{Binding TextStatesCollection}"
+                                SelectedItem="{Binding SelectedTextState, Mode=TwoWay}" />
+                            <Button
+                                Width="40"
+                                Margin="20,0,0,0"
+                                VerticalContentAlignment="Center"
+                                Command="{Binding AddEmptyTemplateCommand}"
+                                Content="+"
+                                FontSize="14" />
+                            <Button
+                                Width="40"
+                                Margin="10,0,0,0"
+                                VerticalContentAlignment="Center"
+                                Command="{Binding RemoveTemplateCommand}"
+                                Content="-"
+                                FontSize="14" />
                         </StackPanel>
                         <DockPanel Grid.Row="1" Grid.Column="0">
                             <TextBlock
@@ -214,7 +233,7 @@
                                 Text="코드" />
                             <avalonedit:TextEditor
                                 Padding="5"
-                                helpers:TextEditorHelper.BindableText="{Binding ReceivedCode, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                helpers:TextEditorHelper.BindableText="{Binding GeneratedCode, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
                                 HorizontalScrollBarVisibility="Auto"
                                 ShowLineNumbers="True"
                                 SyntaxHighlighting="C++"
@@ -231,7 +250,7 @@
                                 AcceptsReturn="True"
                                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                Text="{Binding ReceivedDescription, UpdateSourceTrigger=PropertyChanged}" />
+                                Text="{Binding GeneratedDescription, UpdateSourceTrigger=PropertyChanged}" />
                         </DockPanel>
                         <StackPanel
                             Grid.Row="2"
