@@ -106,7 +106,7 @@
                         Margin="0,0,0,10"
                         Padding="10"
                         Command="{Binding RecordAudioCommand}"
-                        Content="음성 인식 시작"
+                        Content="{Binding RecordButtonContent}"
                         DockPanel.Dock="Top" />
                     <TextBox
                         Padding="5"
