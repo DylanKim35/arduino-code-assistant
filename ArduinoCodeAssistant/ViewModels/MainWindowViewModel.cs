@@ -289,30 +289,49 @@ namespace ArduinoCodeAssistant.ViewModels
 
         #region RecordAudio
 
-        private bool _isRecord;
+        private bool _isRecord = false;
+
+        private string _recordButtonContent = "음성 인식 시작";
+        public string RecordButtonContent
+        {
+            get { return _recordButtonContent; }
+            set
+            {
+                _recordButtonContent = value;
+                OnPropertyChanged();
+            }
+        }
 
         private ICommand? _recordAudioCommand;
 
         public ICommand RecordAudioCommand =>
             _recordAudioCommand ??= new RelayCommand<object>(async (o) =>
             {
-                _isCommandRunning = false;
-
                 if (!_isRecord)
                 {
+                    _isCommandRunning = true;
                     _isRecord = true;
+                    CommandManager.InvalidateRequerySuggested();
+
                     _audioRecorder.StartRecording("tempRecord.mp3");
+
+                    _loggingService.Log("음성 인식 시작", LoggingService.LogLevel.Info);
+                    RecordButtonContent = "음성 인식 종료";
                 }
                 else
                 {
+                    _isRecord = false;
+
                     await _audioRecorder.StopRecordingAsync();
                     RequestingMessage = await _whisperService.GetTranscript(_audioRecorder.GetAudioFilePath());
-                    _isRecord = false;
+
+                    _loggingService.Log("음성 인식 종료", LoggingService.LogLevel.Info);
+                    RecordButtonContent = "음성 인식 시작";
+
+                    _isCommandRunning = false;
+                    CommandManager.InvalidateRequerySuggested();
                 }
-
-                _isCommandRunning = true;
-
-            }, (o) => true);
+            }, (o) => !_isCommandRunning || _isRecord);
 
         #endregion
 
