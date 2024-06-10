@@ -5,11 +5,13 @@
     xmlns:avalonedit="http://icsharpcode.net/sharpdevelop/avalonedit"
     xmlns:converters="clr-namespace:ArduinoCodeAssistant.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    d:DesignWidth="1000"
     xmlns:helpers="clr-namespace:ArduinoCodeAssistant.Helpers"
     xmlns:local="clr-namespace:ArduinoCodeAssistant.Views"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     x:Name="AcaWindow"
     Title="아두이노 코드 어시스턴트"
+    Icon="/Assets/arduino.ico"
     Width="800"
     Height="600"
     mc:Ignorable="d">
@@ -150,7 +152,7 @@
             Grid.Column="2"
             Margin="10">
             <Grid.RowDefinitions>
-                <RowDefinition Height="*" MinHeight="235" />
+                <RowDefinition Height="*" MinHeight="200" />
                 <RowDefinition Height="auto" />
                 <RowDefinition Height="*" MinHeight="110" />
             </Grid.RowDefinitions>
