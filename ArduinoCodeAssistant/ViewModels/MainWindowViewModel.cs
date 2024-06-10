@@ -124,6 +124,17 @@ namespace ArduinoCodeAssistant.ViewModels
 
         #region UploadCode
 
+        private bool _allowAutoExecuteUpload;
+        public bool AllowAutoExecuteUpload
+        {
+            get => _allowAutoExecuteUpload;
+            set
+            {
+                _allowAutoExecuteUpload = value;
+                OnPropertyChanged();
+            }
+        }
+
         private ICommand? _uploadCodeCommand;
         public ICommand UploadCodeCommand =>
             _uploadCodeCommand ??= new RelayCommand<object>(async (o) =>
@@ -165,6 +176,17 @@ namespace ArduinoCodeAssistant.ViewModels
         #endregion
 
         #region SendChatMessage
+
+        private bool _allowAutoExecuteGeneration;
+        public bool AllowAutoExecuteGeneration
+        {
+            get => _allowAutoExecuteGeneration;
+            set
+            {
+                _allowAutoExecuteGeneration = value;
+                OnPropertyChanged();
+            }
+        }
 
         private string _boardStatus;
         public string BoardStatus
@@ -282,6 +304,11 @@ namespace ArduinoCodeAssistant.ViewModels
                         GeneratedDescription = description;
                         GeneratedTag = tag;
                         _loggingService.Log("작업 성공.", LoggingService.LogLevel.Completed);
+
+                        if(AllowAutoExecuteUpload)
+                        {
+                            UploadCodeCommand.Execute(null);
+                        }
                     }
                     else
                     {
@@ -343,6 +370,11 @@ namespace ArduinoCodeAssistant.ViewModels
                     _loggingService.Log("음성 인식 종료.", LoggingService.LogLevel.Info);
                     RecordButtonContent = "음성 인식 시작";
 
+                    if (AllowAutoExecuteGeneration && !string.IsNullOrEmpty(RequestingMessage))
+                    {
+                        SendChatMessageCommand.Execute(null);
+                    }
+
                     _isCommandRunning = false;
                     CommandManager.InvalidateRequerySuggested();
                 }
@@ -354,14 +386,14 @@ namespace ArduinoCodeAssistant.ViewModels
 
         private ICommand? _clearLogTextBoxCommand;
         public ICommand ClearLogTextBoxCommand =>
-            _clearLogTextBoxCommand ??= new RelayCommand<object>(async (o) =>
+            _clearLogTextBoxCommand ??= new RelayCommand<object>((o) =>
             {
                 _loggingService.ClearLogTextBox();
             });
 
         private ICommand? _clearSerialTextBoxCommand;
         public ICommand ClearSerialTextBoxCommand =>
-            _clearSerialTextBoxCommand ??= new RelayCommand<object>(async (o) =>
+            _clearSerialTextBoxCommand ??= new RelayCommand<object>((o) =>
             {
                 _loggingService.ClearSerialTextBox();
             });
