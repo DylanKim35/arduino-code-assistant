@@ -23,6 +23,8 @@ namespace ArduinoCodeAssistant.Services
             _arduinoInfo = arduinoInfo;
             _serialConfig = serialConfig;
             _loggingService = loggingService;
+
+            _serialConfig.SerialPort.DataReceived += OnDataReceived;
         }
 
         public async Task<bool> DetectDeviceAsync()
@@ -81,31 +83,24 @@ namespace ArduinoCodeAssistant.Services
 
         public event EventHandler<string> DataReceived;
 
-        public void OpenSerialPort(string? portName, int baudRate)
+        public void OpenSerialPort(string? portName)
         {
-            if (_serialConfig.SerialPort != null || portName == null) return;
+            if (portName == null || _serialConfig.SerialPort.IsOpen) return;
 
-            _serialConfig.SerialPort = new SerialPort();
-            _serialConfig.SerialPort.Encoding = Encoding.UTF8;
-            _serialConfig.SerialPort.DataReceived += OnDataReceived;
-            _serialConfig.SerialPort.BaudRate = baudRate;
             _serialConfig.SerialPort.PortName = portName;
             _serialConfig.SerialPort.Open();
 
             _loggingService.Log($"시리얼 포트 개방 완료. (PortName: {_serialConfig.SerialPort.PortName}, BaudRate: {_serialConfig.SerialPort.BaudRate})");
         }
 
-        //public void CloseSerialPort()
-        //{
-        //    if (_serialConfig.SerialPort == null) return;
+        public void CloseSerialPort()
+        {
+            if (!_serialConfig.SerialPort.IsOpen) return;
 
-        //    _serialConfig.SerialPort.DataReceived -= OnDataReceived;
-        //    _serialConfig.SerialPort?.Close();
-        //    _serialConfig.SerialPort?.Dispose();
-        //    _serialConfig.SerialPort = null;
+            _serialConfig.SerialPort.Close();
 
-        //    _loggingService.Log("시리얼 포트 폐쇄 완료.");
-        //}
+            _loggingService.Log("시리얼 포트 폐쇄 완료.");
+        }
 
         private void OnDataReceived(object sender, SerialDataReceivedEventArgs e)
         {

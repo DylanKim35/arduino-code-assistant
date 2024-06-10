@@ -41,10 +41,12 @@ namespace ArduinoCodeAssistant.ViewModels
             _audioRecorder = audioRecorder;
             _whisperService = whisperService;
 
+            #region TextStateIO
             _textStatesDictionary = _savingService.TextStatesDictionary;
             TextStatesCollection = _savingService.TextStatesCollection;
             _savingService.InitializeTextStates();
             SelectedTextState = TextStatesCollection.Last();
+            #endregion
         }
 
         #region DetectArduino
@@ -86,6 +88,7 @@ namespace ArduinoCodeAssistant.ViewModels
                 ArduinoPortStatus = "";
                 ArduinoNameStatus = "";
                 _arduinoInfo.SetAllPropertiesToNull();
+                _arduinoService.CloseSerialPort();
                 _loggingService.Log("작업 시작...");
                 try
                 {
@@ -97,7 +100,10 @@ namespace ArduinoCodeAssistant.ViewModels
                     {
                         throw new Exception("Method _arduinoService.DetectDeviceAndOpenPortAsync returned false");
                     }
-                    _arduinoService.OpenSerialPort(_arduinoInfo.Port, 9600);
+
+                    if (_arduinoInfo.Port != null)
+                        _arduinoService.OpenSerialPort(_arduinoInfo.Port);
+
                     _loggingService.Log("작업 성공.", LoggingService.LogLevel.Completed);
                 }
                 catch(Exception ex)
@@ -124,6 +130,7 @@ namespace ArduinoCodeAssistant.ViewModels
             {
                 _isCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
+                _arduinoService.CloseSerialPort();
                 _loggingService.Log("작업 시작...");
 
                 try
@@ -137,7 +144,11 @@ namespace ArduinoCodeAssistant.ViewModels
                         throw new Exception("Method _arduinoService.UploadCodeAsync returned false");
                     }
 
+                    if (_arduinoInfo.Port != null)
+                        _arduinoService.OpenSerialPort(_arduinoInfo.Port);
+
                     _loggingService.Log("작업 성공.", LoggingService.LogLevel.Completed);
+
                 }
                 catch (Exception ex)
                 {
@@ -239,11 +250,15 @@ namespace ArduinoCodeAssistant.ViewModels
             {
                 _isCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
+                string prevBoardStatus = BoardStatus;
+                string prevRequestingMessage = RequestingMessage;
                 AddEmptyTemplateCommand.Execute(null);
+                BoardStatus = prevBoardStatus;
+                RequestingMessage = prevRequestingMessage;
                 _loggingService.Log("응답을 기다리는 중...");
                 try
                 {
-                    var response = await _chatService.SendMessage(RequestingMessage);
+                    var response = await _chatService.SendMessage(RequestingMessage, BoardStatus);
                     if (response != null)
                     {
                         int startIndex = response.IndexOf("```json");
@@ -315,7 +330,7 @@ namespace ArduinoCodeAssistant.ViewModels
 
                     _audioRecorder.StartRecording("tempRecord.mp3");
 
-                    _loggingService.Log("음성 인식 시작", LoggingService.LogLevel.Info);
+                    _loggingService.Log("음성 인식 시작.", LoggingService.LogLevel.Info);
                     RecordButtonContent = "음성 인식 종료";
                 }
                 else
@@ -325,7 +340,7 @@ namespace ArduinoCodeAssistant.ViewModels
                     await _audioRecorder.StopRecordingAsync();
                     RequestingMessage = await _whisperService.GetTranscript(_audioRecorder.GetAudioFilePath());
 
-                    _loggingService.Log("음성 인식 종료", LoggingService.LogLevel.Info);
+                    _loggingService.Log("음성 인식 종료.", LoggingService.LogLevel.Info);
                     RecordButtonContent = "음성 인식 시작";
 
                     _isCommandRunning = false;

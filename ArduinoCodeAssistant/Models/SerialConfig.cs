@@ -11,19 +11,14 @@ namespace ArduinoCodeAssistant.Models
 {
     public class SerialConfig : INotifyPropertyChanged
     {
-        private SerialPort? _serialPort;
-        public SerialPort? SerialPort
+        public SerialConfig()
         {
-            get => _serialPort;
-            set
-            {
-                if (value != _serialPort)
-                {
-                    _serialPort = value;
-                    OnPropertyChanged();
-                }
-            }
+            SerialPort = new SerialPort();
+            SerialPort.Encoding = Encoding.UTF8;
+            SerialPort.BaudRate = 9600;
         }
+
+        public SerialPort SerialPort { get; }
 
         //private int _baudRate;
         //public int BaudRate
