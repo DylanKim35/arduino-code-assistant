@@ -12,8 +12,8 @@
     x:Name="AcaWindow"
     Title="아두이노 코드 어시스턴트"
     Icon="/Assets/arduino.ico"
-    Width="800"
-    Height="600"
+    MinWidth="950"
+    MinHeight="500"
     mc:Ignorable="d">
     <Window.Resources>
         <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
