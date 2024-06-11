@@ -355,6 +355,10 @@ namespace ArduinoCodeAssistant.ViewModels
                     _isRecord = true;
                     CommandManager.InvalidateRequerySuggested();
 
+                    string prevBoardStatus = BoardStatus;
+                    AddEmptyTemplateCommand.Execute(null);
+                    BoardStatus = prevBoardStatus;
+
                     _audioRecorder.StartRecording("tempRecord.mp3");
 
                     _loggingService.Log("음성 인식 시작.", LoggingService.LogLevel.Info);
@@ -453,8 +457,9 @@ namespace ArduinoCodeAssistant.ViewModels
                 {
                     _savingService.AddEmptyTemplate();
                     SelectedTextState = TextStatesCollection.Last();
-                    SetAllSavableTextBoxToEmpty();
                 }
+
+                SetAllSavableTextBoxToEmpty();
             });
 
         private ICommand? _removeTemplateCommand;
