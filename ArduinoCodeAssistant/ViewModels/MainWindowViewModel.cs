@@ -19,7 +19,19 @@ namespace ArduinoCodeAssistant.ViewModels
         private readonly LoggingService _loggingService;
         private readonly AudioRecorder _audioRecorder;
         private readonly WhisperService _whisperService;
-        private bool _isCommandRunning = false;
+        private bool _isCommandRunning;
+        public bool IsCommandRunning
+        {
+            get => _isCommandRunning;
+            set
+            {
+                if (value != _isCommandRunning)
+                {
+                    _isCommandRunning = value;
+                    OnPropertyChanged();
+                }    
+            }
+        }
 
         public MainWindowViewModel(ArduinoService arduinoService,
             ArduinoInfo arduinoInfo,
@@ -40,6 +52,7 @@ namespace ArduinoCodeAssistant.ViewModels
             _whisperService = whisperService;
             _audioRecorder = audioRecorder;
             _whisperService = whisperService;
+            IsCommandRunning = false;
 
             #region TextStateIO
             _textStatesDictionary = _savingService.TextStatesDictionary;
@@ -83,7 +96,7 @@ namespace ArduinoCodeAssistant.ViewModels
         public ICommand DetectArduinoCommand =>
             _detectArduinoCommand ??= new RelayCommand<object>(async (o) =>
             {
-                _isCommandRunning = true;
+                IsCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
                 ArduinoPortStatus = "";
                 ArduinoNameStatus = "";
@@ -114,11 +127,11 @@ namespace ArduinoCodeAssistant.ViewModels
                 {
                     ArduinoPortStatus = _arduinoInfo.Port ?? "";
                     ArduinoNameStatus = _arduinoInfo.Name ?? "";
-                    _isCommandRunning = false;
+                    IsCommandRunning = false;
                     CommandManager.InvalidateRequerySuggested();
                 }
 
-            }, (o) => !_isCommandRunning);
+            }, (o) => !IsCommandRunning);
 
         #endregion
 
@@ -139,7 +152,7 @@ namespace ArduinoCodeAssistant.ViewModels
         public ICommand UploadCodeCommand =>
             _uploadCodeCommand ??= new RelayCommand<object>(async (o) =>
             {
-                _isCommandRunning = true;
+                IsCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
                 _arduinoService.CloseSerialPort();
                 _loggingService.Log("작업 시작...");
@@ -167,11 +180,11 @@ namespace ArduinoCodeAssistant.ViewModels
                 }
                 finally
                 {
-                    _isCommandRunning = false;
+                    IsCommandRunning = false;
                     CommandManager.InvalidateRequerySuggested();
                 }
 
-            }, (o) => !_isCommandRunning);
+            }, (o) => !IsCommandRunning);
 
         #endregion
 
@@ -270,7 +283,7 @@ namespace ArduinoCodeAssistant.ViewModels
         public ICommand SendChatMessageCommand =>
             _sendChatMessageCommand ??= new RelayCommand<object>(async (o) =>
             {
-                _isCommandRunning = true;
+                IsCommandRunning = true;
                 CommandManager.InvalidateRequerySuggested();
                 string prevBoardStatus = BoardStatus;
                 string prevRequestingMessage = RequestingMessage;
@@ -321,11 +334,11 @@ namespace ArduinoCodeAssistant.ViewModels
                 }
                 finally
                 {
-                    _isCommandRunning = false;
+                    IsCommandRunning = false;
                     CommandManager.InvalidateRequerySuggested();
                 }
 
-            }, (o) => !_isCommandRunning);
+            }, (o) => !IsCommandRunning);
 
         #endregion
 
@@ -351,7 +364,7 @@ namespace ArduinoCodeAssistant.ViewModels
             {
                 if (!_isRecord)
                 {
-                    _isCommandRunning = true;
+                    IsCommandRunning = true;
                     _isRecord = true;
                     CommandManager.InvalidateRequerySuggested();
 
@@ -379,10 +392,10 @@ namespace ArduinoCodeAssistant.ViewModels
                         SendChatMessageCommand.Execute(null);
                     }
 
-                    _isCommandRunning = false;
+                    IsCommandRunning = false;
                     CommandManager.InvalidateRequerySuggested();
                 }
-            }, (o) => !_isCommandRunning || _isRecord);
+            }, (o) => !IsCommandRunning || _isRecord);
 
         #endregion
 

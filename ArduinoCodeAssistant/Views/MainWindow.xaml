@@ -5,15 +5,15 @@
     xmlns:avalonedit="http://icsharpcode.net/sharpdevelop/avalonedit"
     xmlns:converters="clr-namespace:ArduinoCodeAssistant.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    d:DesignWidth="1000"
     xmlns:helpers="clr-namespace:ArduinoCodeAssistant.Helpers"
     xmlns:local="clr-namespace:ArduinoCodeAssistant.Views"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     x:Name="AcaWindow"
     Title="아두이노 코드 어시스턴트"
-    Icon="/Assets/arduino.ico"
     MinWidth="950"
     MinHeight="500"
+    d:DesignWidth="1000"
+    Icon="/Assets/arduino.ico"
     mc:Ignorable="d">
     <Window.Resources>
         <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
@@ -127,12 +127,12 @@
             Margin="10">
             <CheckBox
                 x:Name="AutoRequestCodeChk"
-                IsChecked="{Binding AllowAutoExecuteGeneration}"
                 Margin="10"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Content="자동 실행"
-                DockPanel.Dock="Right" />
+                DockPanel.Dock="Right"
+                IsChecked="{Binding AllowAutoExecuteGeneration}" />
             <Button
                 Padding="10"
                 Command="{Binding SendChatMessageCommand}"
@@ -174,9 +174,9 @@
                         x:Name="AutoRequestCommunicationChk"
                         Margin="10"
                         VerticalAlignment="Center"
-                        IsChecked="{Binding AllowAutoExecuteUpload}"
                         Content="자동 실행"
-                        DockPanel.Dock="Right" />
+                        DockPanel.Dock="Right"
+                        IsChecked="{Binding AllowAutoExecuteUpload}" />
                     <Button
                         Padding="10"
                         Command="{Binding UploadCodeCommand}"
@@ -205,14 +205,16 @@
                             <TextBox
                                 Width="200"
                                 Padding="5"
-                                MaxLength="20"
                                 VerticalAlignment="Center"
+                                IsEnabled="{Binding IsCommandRunning, Converter={StaticResource InverseBooleanConverter}}"
+                                MaxLength="20"
                                 Text="{Binding GeneratedTag, UpdateSourceTrigger=PropertyChanged}" />
                             <ComboBox
                                 Width="200"
                                 Margin="10,0,0,0"
                                 VerticalContentAlignment="Center"
                                 DisplayMemberPath="GeneratedTag"
+                                IsEnabled="{Binding IsCommandRunning, Converter={StaticResource InverseBooleanConverter}}"
                                 ItemsSource="{Binding TextStatesCollection}"
                                 SelectedItem="{Binding SelectedTextState, Mode=TwoWay}" />
                             <Button
@@ -221,14 +223,16 @@
                                 VerticalContentAlignment="Center"
                                 Command="{Binding AddEmptyTemplateCommand}"
                                 Content="+"
-                                FontSize="14" />
+                                FontSize="14"
+                                IsEnabled="{Binding IsCommandRunning, Converter={StaticResource InverseBooleanConverter}}" />
                             <Button
                                 Width="40"
                                 Margin="10,0,0,0"
                                 VerticalContentAlignment="Center"
                                 Command="{Binding RemoveTemplateCommand}"
                                 Content="-"
-                                FontSize="14" />
+                                FontSize="14"
+                                IsEnabled="{Binding IsCommandRunning, Converter={StaticResource InverseBooleanConverter}}" />
                         </StackPanel>
                         <DockPanel Grid.Row="1" Grid.Column="0">
                             <TextBlock
@@ -247,7 +251,7 @@
                             <TextBlock
                                 Margin="0,0,0,5"
                                 DockPanel.Dock="Top"
-                                Text="주석" />
+                                Text="코드 설명" />
                             <TextBox
                                 Grid.Column="0"
                                 Padding="5"

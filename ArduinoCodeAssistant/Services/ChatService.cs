@@ -51,7 +51,7 @@ namespace ArduinoCodeAssistant.Services
                             "- 들여쓰기는 space 대신 tab을 사용해 주세요.\n" +
                             "- code는 Allman 스타일로 작성해 주세요.\n" +
                             "- code는 최대한 효율적이고 간략한 알고리즘으로 작성해 주세요.\n" +
-                            "- 정상적이지 않은 명령이라고 판단되면 code 및 description에 오류 메시지를 출력해 주세요.\n" +
+                            "- 정상적이지 않은 명령이라고 판단되면 code에는 아무 텍스트도 작성하지 말고, description에만 오류 메시지를 작성해 주세요.\n" +
                             "- 시리얼 통신이 필요한 경우, 보드레이트는 반드시 9600으로 설정해 주세요.\n"
                         ),
                         ChatMessage.FromUser(message)
