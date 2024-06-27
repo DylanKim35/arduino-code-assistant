@@ -35,6 +35,23 @@
             Margin="20,30,20,20"
             HorizontalAlignment="Center"
             VerticalAlignment="Center">
+
+            <StackPanel
+                Margin="0,15,0,0"
+                HorizontalAlignment="Center"
+                DockPanel.Dock="Bottom"
+                Orientation="Horizontal">
+                <CheckBox
+                    x:Name="isMotionControlChkBox"
+                    Margin="0,0,20,0"
+                    VerticalContentAlignment="Center"
+                    Content="사용자 동작 제어" />
+                <Button
+                    Padding="10"
+                    Command="{Binding ShowMotionControlPanelCommand}"
+                    Content="&gt;&gt; 미리보기"
+                    IsEnabled="{Binding ElementName=isMotionControlChkBox, Path=IsChecked}" />
+            </StackPanel>
             <StackPanel HorizontalAlignment="Center" DockPanel.Dock="Right">
                 <DockPanel Margin="0,0,0,10">
                     <TextBlock

@@ -517,6 +517,15 @@ namespace ArduinoCodeAssistant.ViewModels
 
         #endregion
 
+        #region MotionControl
+        private ICommand? _showMotionControlPanelCommand;
+        public ICommand ShowMotionControlPanelCommand =>
+            _showMotionControlPanelCommand ??= new RelayCommand<object>(async (o) =>
+            {
+                
+            });
+        #endregion
+
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
         {
