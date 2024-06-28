@@ -19,6 +19,7 @@ namespace ArduinoCodeAssistant.ViewModels
         private readonly LoggingService _loggingService;
         private readonly AudioRecorder _audioRecorder;
         private readonly WhisperService _whisperService;
+        private readonly MotionControlService _motionControlService;
         private bool _isCommandRunning;
         public bool IsCommandRunning
         {
@@ -40,7 +41,8 @@ namespace ArduinoCodeAssistant.ViewModels
             ChatResponse chatResponse,
             LoggingService loggingService,
             AudioRecorder audioRecorder,
-            WhisperService whisperService)
+            WhisperService whisperService,
+            MotionControlService motionControlService)
         {
             _arduinoService = arduinoService;
             _arduinoInfo = arduinoInfo;
@@ -52,6 +54,7 @@ namespace ArduinoCodeAssistant.ViewModels
             _whisperService = whisperService;
             _audioRecorder = audioRecorder;
             _whisperService = whisperService;
+            _motionControlService = motionControlService;
             IsCommandRunning = false;
 
             #region TextStateIO

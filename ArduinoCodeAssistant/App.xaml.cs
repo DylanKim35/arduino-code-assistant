@@ -19,6 +19,7 @@ namespace ArduinoCodeAssistant
             services.AddSingleton<MainWindow>();
             services.AddSingleton<MainWindowViewModel>();
             services.AddSingleton<ArduinoService>();
+            services.AddSingleton<MotionControlService>();
             services.AddSingleton<ArduinoInfo>();
             services.AddSingleton<SerialConfig>();
             services.AddSingleton<SavingService>();
