@@ -10,9 +10,9 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     x:Name="AcaWindow"
     Title="아두이노 코드 어시스턴트"
-    MinWidth="950"
-    MinHeight="500"
-    d:DesignWidth="1000"
+    MinWidth="1160"
+    MinHeight="730"
+    d:DesignWidth="1160"
     Icon="/Assets/arduino.ico"
     mc:Ignorable="d">
     <Window.Resources>
@@ -25,34 +25,74 @@
             <RowDefinition Height="auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" MinWidth="350" />
+            <ColumnDefinition Width="*" MinWidth="560" />
             <ColumnDefinition Width="auto" />
             <ColumnDefinition Width="*" MinWidth="580" />
         </Grid.ColumnDefinitions>
         <DockPanel
             Grid.Row="0"
             Grid.Column="0"
-            Margin="20,30,20,20"
+            Margin="40,20,40,20"
             HorizontalAlignment="Center"
             VerticalAlignment="Center">
 
             <StackPanel
-                Margin="0,15,0,0"
+                Margin="40 0 0 0"
                 HorizontalAlignment="Center"
-                DockPanel.Dock="Bottom"
+                DockPanel.Dock="Right"
                 Orientation="Horizontal">
-                <CheckBox
+                <GroupBox Header="사용자 동작 제어" Padding="10">
+                    <StackPanel Orientation="Vertical">
+                        <StackPanel Orientation="Horizontal">
+
+                            <CheckBox
                     x:Name="isMotionControlChkBox"
                     Margin="0,0,20,0"
                     VerticalContentAlignment="Center"
                     Content="사용자 동작 제어" />
-                <Button
+                            <Button
                     Padding="10"
                     Command="{Binding ShowMotionControlPanelCommand}"
                     Content="&gt;&gt; 미리보기"
                     IsEnabled="{Binding ElementName=isMotionControlChkBox, Path=IsChecked}" />
+                        </StackPanel>
+                        <DockPanel Margin="0 15 0 0" IsEnabled="{Binding ElementName=isMotionControlChkBox, Path=IsChecked}">
+                            <Separator DockPanel.Dock="Top" Margin="0 0 0 15"/>
+                            <TextBlock Margin="0 0 0 5" Text="창 크기: " VerticalAlignment="Center" DockPanel.Dock="Top"/>
+                            <StackPanel Margin="0 0 0 10" DockPanel.Dock="Top" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <TextBox TextAlignment="Center" VerticalContentAlignment="Center" Width="50" Height="30" Text="640"/>
+                                <TextBlock Text="  x  " VerticalAlignment="Center"/>
+                                <TextBox TextAlignment="Center" VerticalContentAlignment="Center" Width="50" Height="30" Text="480"/>
+                            </StackPanel>
+                            <TextBlock Margin="0 0 0 10" Text="deltaAngle_threshold" HorizontalAlignment="Left" VerticalAlignment="Center" DockPanel.Dock="Top"/>
+                            
+                            <Slider Minimum="0" Maximum="30" IsSnapToTickEnabled="True" TickPlacement="BottomRight" AutoToolTipPlacement="BottomRight" DockPanel.Dock="Top" Margin="0 0 0 10" Value="5"/>
+                            <TextBlock Margin="0 0 0 10" Text="speedRatio_threshold" VerticalAlignment="Center" DockPanel.Dock="Top"/>
+                            <Slider Minimum="0" Maximum="1" IsSnapToTickEnabled="True" TickPlacement="BottomRight" AutoToolTipPlacement="BottomRight" TickFrequency="0.05" AutoToolTipPrecision="2" DockPanel.Dock="Top" Margin="0 0 0 10" Value="0.25"/>
+                            <TextBlock Margin="0 0 0 10" VerticalAlignment="Center" DockPanel.Dock="Top" Text="deltaAngle, speedRatio" HorizontalAlignment="Left"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition/>
+                                    <ColumnDefinition/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Margin="0 0 5 0" IsEnabled="False" IsReadOnly="True" Height="30" />
+                                <TextBox Margin="5 0 0 0" IsEnabled="False" Grid.Column="1" IsReadOnly="True" Height="30" />
+                            </Grid>
+
+
+                        </DockPanel>
+                    </StackPanel>
+                </GroupBox>
             </StackPanel>
-            <StackPanel HorizontalAlignment="Center" DockPanel.Dock="Right">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" DockPanel.Dock="Right">
+
+                <Button
+                Padding="10"
+                    Height="80"
+                    Margin="0 0 0 20"
+                Command="{Binding DetectArduinoCommand}"
+                Content="아두이노 감지"
+                DockPanel.Dock="Top" />
                 <DockPanel Margin="0,0,0,10">
                     <TextBlock
                         Margin="0,0,0,5"
@@ -85,13 +125,6 @@
                         Text="{Binding ArduinoNameStatus, Mode=OneWay}" />
                 </DockPanel>
             </StackPanel>
-
-            <Button
-                Margin="0,0,30,0"
-                Padding="10"
-                Command="{Binding DetectArduinoCommand}"
-                Content="아두이노 감지"
-                DockPanel.Dock="Right" />
         </DockPanel>
         <GroupBox
             Grid.Row="1"

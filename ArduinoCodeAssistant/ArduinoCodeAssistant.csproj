@@ -26,4 +26,10 @@
     <Resource Include="Assets\arduino.ico" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="hand_tracking.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          

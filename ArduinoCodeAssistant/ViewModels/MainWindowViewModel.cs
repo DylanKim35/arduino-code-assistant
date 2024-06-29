@@ -1,9 +1,14 @@
 ﻿using ArduinoCodeAssistant.Models;
 using ArduinoCodeAssistant.Services;
 using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text;
+using System.Windows;
 using System.Windows.Input;
 using System.Xml.Linq;
 
@@ -521,12 +526,88 @@ namespace ArduinoCodeAssistant.ViewModels
         #endregion
 
         #region MotionControl
+
+        private string _outputText;
+        public string OutputText
+        {
+            get { return _outputText; }
+            set
+            {
+                if (_outputText != value)
+                {
+                    _outputText = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private Process _pythonProcess;
+
         private ICommand? _showMotionControlPanelCommand;
         public ICommand ShowMotionControlPanelCommand =>
             _showMotionControlPanelCommand ??= new RelayCommand<object>(async (o) =>
             {
-                
+                if (_pythonProcess == null || _pythonProcess.HasExited)
+                {
+                    string pythonFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "hand_tracking.py");
+                    _pythonProcess = new Process();
+                    _pythonProcess.StartInfo.FileName = @"C:\Users\Administrator\AppData\Local\Programs\Python\Python312\python.exe";
+                    _pythonProcess.StartInfo.Arguments = pythonFile;
+                    _pythonProcess.StartInfo.UseShellExecute = false;
+                    _pythonProcess.StartInfo.RedirectStandardOutput = true;
+                    _pythonProcess.StartInfo.RedirectStandardError = true;
+                    _pythonProcess.StartInfo.CreateNoWindow = true;
+
+                    _pythonProcess.OutputDataReceived += PythonOutputHandler;
+                    StringBuilder errorBuilder = new StringBuilder();
+                    _pythonProcess.ErrorDataReceived += (sender, e) =>
+                    {
+                        if (!string.IsNullOrEmpty(e.Data))
+                        {
+                            // 오류 메시지를 수집합니다.
+                            errorBuilder.AppendLine(e.Data);
+                        }
+                    };
+
+                    _pythonProcess.Exited += (sender, e) =>
+                    {
+                        string errorMessage = errorBuilder.ToString();
+                        if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            _loggingService.Log("파이썬 실행 예외:\n" + errorMessage, LoggingService.LogLevel.Error);
+                        }
+                    };
+                    _pythonProcess.EnableRaisingEvents = true;
+                    _pythonProcess.Start();
+                    _pythonProcess.BeginOutputReadLine();
+                    _pythonProcess.BeginErrorReadLine();
+                }
             });
+
+        private void PythonOutputHandler(object sendingProcess, DataReceivedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(e.Data))
+            {
+                // 데이터를 ','로 분리하여 a와 b로 저장
+                string[] parts = e.Data.Split(',');
+                if (parts.Length == 2)
+                {
+                    if (double.TryParse(parts[0], out double deltaAngle) && double.TryParse(parts[1], out double speedRatio))
+                    {
+                        // UI 스레드에서 변수에 값 할당
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            // 여기서 WPF의 변수에 값을 저장하거나 UI를 업데이트할 수 있음
+                            // 예를 들어, 텍스트 박스에 출력하는 등의 작업을 수행할 수 있음
+                            Debug.WriteLine("deltaAngle: " + deltaAngle);
+                            Debug.WriteLine("speedRatio: " + speedRatio);
+                            Debug.WriteLine("");
+                        });
+                    }
+                }
+            }
+        }
+
         #endregion
 
         public event PropertyChangedEventHandler? PropertyChanged;
