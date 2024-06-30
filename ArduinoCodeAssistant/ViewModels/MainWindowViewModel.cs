@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Input;
@@ -67,6 +68,13 @@ namespace ArduinoCodeAssistant.ViewModels
             TextStatesCollection = _savingService.TextStatesCollection;
             _savingService.InitializeTextStates();
             SelectedTextState = TextStatesCollection.Last();
+            #endregion
+
+            #region MotionControl
+            MotionControlPanelWidth = 640;
+            MotionControlPanelHeight = 480;
+            DeltaAngleThreshold = 5;
+            SpeedRatioThreshold = 0.25;
             #endregion
         }
 
@@ -527,15 +535,99 @@ namespace ArduinoCodeAssistant.ViewModels
 
         #region MotionControl
 
-        private string _outputText;
-        public string OutputText
+        private object _motionControlPanelWidth;
+        public object MotionControlPanelWidth
         {
-            get { return _outputText; }
+            get { return _motionControlPanelWidth; }
             set
             {
-                if (_outputText != value)
+                if (int.TryParse(value.ToString(), out int newValue))
                 {
-                    _outputText = value;
+                    _motionControlPanelWidth = newValue;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private object _motionControlPanelHeight;
+        public object MotionControlPanelHeight
+        {
+            get { return _motionControlPanelHeight; }
+            set
+            {
+                if (int.TryParse(value.ToString(), out int newValue))
+                {
+                    _motionControlPanelHeight = newValue;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private double _deltaAngle;
+        public double DeltaAngle
+        {
+            get { return _deltaAngle; }
+            set
+            {
+                if (_deltaAngle != value)
+                {
+                    _deltaAngle = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private double _speedRatio;
+        public double SpeedRatio
+        {
+            get { return _speedRatio; }
+            set
+            {
+                if (_speedRatio != value)
+                {
+                    _speedRatio = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private double _deltaAngleThreshold;
+        public double DeltaAngleThreshold
+        {
+            get { return _deltaAngleThreshold; }
+            set
+            {
+                if (_deltaAngleThreshold != value)
+                {
+                    _deltaAngleThreshold = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private double _speedRatioThreshold;
+        public double SpeedRatioThreshold
+        {
+            get { return _speedRatioThreshold; }
+            set
+            {
+                if (_speedRatioThreshold != value)
+                {
+                    _speedRatioThreshold = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private bool _isMotionCaptureRunning;
+        public bool IsMotionCaptureRunning
+        {
+            get { return _isMotionCaptureRunning; }
+            set
+            {
+                if (_isMotionCaptureRunning != value)
+                {
+                    _isMotionCaptureRunning = value;
                     OnPropertyChanged();
                 }
             }
@@ -549,10 +641,11 @@ namespace ArduinoCodeAssistant.ViewModels
             {
                 if (_pythonProcess == null || _pythonProcess.HasExited)
                 {
+                    IsMotionCaptureRunning = true;
                     string pythonFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "hand_tracking.py");
                     _pythonProcess = new Process();
-                    _pythonProcess.StartInfo.FileName = @"C:\Users\Administrator\AppData\Local\Programs\Python\Python312\python.exe";
-                    _pythonProcess.StartInfo.Arguments = pythonFile;
+                    _pythonProcess.StartInfo.FileName = $@"C:\Users\Administrator\AppData\Local\Programs\Python\Python312\python.exe";
+                    _pythonProcess.StartInfo.Arguments = pythonFile +  $@" ""{MotionControlPanelWidth}"" ""{MotionControlPanelHeight}"" ""{DeltaAngleThreshold}"" ""{SpeedRatioThreshold}""";
                     _pythonProcess.StartInfo.UseShellExecute = false;
                     _pythonProcess.StartInfo.RedirectStandardOutput = true;
                     _pythonProcess.StartInfo.RedirectStandardError = true;
@@ -571,6 +664,7 @@ namespace ArduinoCodeAssistant.ViewModels
 
                     _pythonProcess.Exited += (sender, e) =>
                     {
+                        IsMotionCaptureRunning = false;
                         string errorMessage = errorBuilder.ToString();
                         if (!string.IsNullOrEmpty(errorMessage))
                         {
@@ -588,6 +682,7 @@ namespace ArduinoCodeAssistant.ViewModels
         {
             if (!string.IsNullOrEmpty(e.Data))
             {
+
                 // 데이터를 ','로 분리하여 a와 b로 저장
                 string[] parts = e.Data.Split(',');
                 if (parts.Length == 2)
@@ -599,9 +694,8 @@ namespace ArduinoCodeAssistant.ViewModels
                         {
                             // 여기서 WPF의 변수에 값을 저장하거나 UI를 업데이트할 수 있음
                             // 예를 들어, 텍스트 박스에 출력하는 등의 작업을 수행할 수 있음
-                            Debug.WriteLine("deltaAngle: " + deltaAngle);
-                            Debug.WriteLine("speedRatio: " + speedRatio);
-                            Debug.WriteLine("");
+                            DeltaAngle = deltaAngle;
+                            SpeedRatio = speedRatio;
                         });
                     }
                 }

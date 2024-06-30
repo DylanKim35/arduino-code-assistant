@@ -5,9 +5,10 @@ from numpy import interp
 import mediapipe as mp
 
 ###################
-wCam, hCam = 640, 480
-delta_angle_threshold = 5
-speed_ratio_threshold = 0.25
+# wCam, hCam = 640, 480
+# delta_angle_threshold = 5
+# speed_ratio_threshold = 0.25
+wCam, hCam, delta_angle_threshold, speed_ratio_threshold = int(sys.argv[1]), int(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4])
 ###################
 
 ###################
@@ -150,24 +151,8 @@ with mp_hands.Hands(
 
         print(f"{output_delta_angle},{output_speed_ratio}")
         sys.stdout.flush()  # 표준 출력을 즉시 전송하기 위해 flush()를 사용
-        cv2.imshow('Hand Tracking', image)
+        cv2.imshow('Motion Control Panel', image)
         if cv2.waitKey(5) & 0xFF == 27:
           break
-
-
-# while True:
-#     success, img = cap.read()
-#
-#     cTime = time.time()
-#     fps = 1 / (cTime - pTime)
-#     pTime = cTime
-#
-#     cv2.putText(img, f'FPS: {int(fps)}', (40, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-#
-#     cv2.imshow('img', img)
-#
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         break
-
 cap.release()
 cv2.destroyAllWindows()
