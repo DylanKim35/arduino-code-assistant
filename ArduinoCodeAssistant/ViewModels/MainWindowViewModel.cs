@@ -1,11 +1,13 @@
 ﻿using ArduinoCodeAssistant.Models;
 using ArduinoCodeAssistant.Services;
 using Newtonsoft.Json.Linq;
+using OpenAI.ObjectModels.ResponseModels;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Ports;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -68,13 +70,21 @@ namespace ArduinoCodeAssistant.ViewModels
             TextStatesCollection = _savingService.TextStatesCollection;
             _savingService.InitializeTextStates();
             SelectedTextState = TextStatesCollection.Last();
+            // avalonedit:TextEditor를 깨우기 위해 공백 문자 삽입(필수)
+            if (string.IsNullOrEmpty(GeneratedCode))
+            {
+                GeneratedCode = " ";
+            }
             #endregion
 
             #region MotionControl
-            MotionControlPanelWidth = 640;
-            MotionControlPanelHeight = 480;
+            BluetoothPort = "COM9";
+            MotionControlPanelWidth = "640";
+            MotionControlPanelHeight = "480";
             DeltaAngleThreshold = 5;
-            SpeedRatioThreshold = 0.25;
+            SpeedRatioThreshold = 0.5;
+            MaximumDeltaAngle = 30;
+            BluetoothSendInterval = "100";
             #endregion
         }
 
@@ -535,43 +545,83 @@ namespace ArduinoCodeAssistant.ViewModels
 
         #region MotionControl
 
-        private object _motionControlPanelWidth;
-        public object MotionControlPanelWidth
+        private string _bluetoothPort;
+        public string BluetoothPort
+        {
+            get { return _bluetoothPort; }
+            set
+            {
+                if (value != _bluetoothPort)
+                {
+                    _bluetoothPort = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private string _motionControlPanelWidth;
+        public string MotionControlPanelWidth
         {
             get { return _motionControlPanelWidth; }
             set
             {
-                if (int.TryParse(value.ToString(), out int newValue))
+                if (int.TryParse(value, out int newValue) && value != _motionControlPanelWidth)
                 {
-                    _motionControlPanelWidth = newValue;
+                    _motionControlPanelWidth = newValue.ToString();
                     OnPropertyChanged();
                 }
             }
         }
 
-        private object _motionControlPanelHeight;
-        public object MotionControlPanelHeight
+        private string _motionControlPanelHeight;
+        public string MotionControlPanelHeight
         {
             get { return _motionControlPanelHeight; }
             set
             {
-                if (int.TryParse(value.ToString(), out int newValue))
+                if (int.TryParse(value, out int newValue) && value != _motionControlPanelHeight)
                 {
-                    _motionControlPanelHeight = newValue;
+                    _motionControlPanelHeight = newValue.ToString();
                     OnPropertyChanged();
                 }
             }
         }
 
-        private double _deltaAngle;
-        public double DeltaAngle
+        private int _deltaAngle;
+        public int DeltaAngle
         {
             get { return _deltaAngle; }
             set
             {
                 if (_deltaAngle != value)
                 {
-                    _deltaAngle = value;
+
+                    if (value > MaximumDeltaAngle)    // 범위 바깥에 있다면
+                    {
+                        _deltaAngle = MaximumDeltaAngle;
+                        MinusDeltaAngleRatio = 0.0;
+                        PlusDeltaAngleRatio = 1.0;
+                    }
+                    else if (value < -MaximumDeltaAngle)
+                    {
+                        _deltaAngle = -MaximumDeltaAngle;
+                        MinusDeltaAngleRatio = 1.0;
+                        PlusDeltaAngleRatio = 0.0;
+                    }
+                    else
+                    {
+                        _deltaAngle = value;
+                        if (value >= 0)
+                        {
+                            MinusDeltaAngleRatio = 0.0;
+                            PlusDeltaAngleRatio = value / (double)MaximumDeltaAngle;
+                        }
+                        else
+                        {
+                            PlusDeltaAngleRatio = 0.0;
+                            MinusDeltaAngleRatio = -value / (double)MaximumDeltaAngle;
+                        }
+                    }
                     OnPropertyChanged();
                 }
             }
@@ -586,13 +636,79 @@ namespace ArduinoCodeAssistant.ViewModels
                 if (_speedRatio != value)
                 {
                     _speedRatio = value;
+                    if (value >= 0)
+                    {
+                        MinusSpeedRatio = 0.0;
+                        PlusSpeedRatio = value;
+                    }
+                    else
+                    {
+                        PlusSpeedRatio = 0.0;
+                        MinusSpeedRatio = -value;
+                    }
                     OnPropertyChanged();
                 }
             }
         }
 
-        private double _deltaAngleThreshold;
-        public double DeltaAngleThreshold
+        private double _minusSpeedRatio;
+        public double MinusSpeedRatio
+        {
+            get { return _minusSpeedRatio; }
+            set
+            {
+                if (_minusSpeedRatio != value)
+                {
+                    _minusSpeedRatio = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private double _plusSpeedRatio;
+        public double PlusSpeedRatio
+        {
+            get { return _plusSpeedRatio; }
+            set
+            {
+                if (_plusSpeedRatio != value)
+                {
+                    _plusSpeedRatio = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private double _minusDeltaAngleRatio;
+        public double MinusDeltaAngleRatio
+        {
+            get { return _minusDeltaAngleRatio; }
+            set
+            {
+                if (_minusDeltaAngleRatio != value)
+                {
+                    _minusDeltaAngleRatio = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private double _plusDeltaAngleRatio;
+        public double PlusDeltaAngleRatio
+        {
+            get { return _plusDeltaAngleRatio; }
+            set
+            {
+                if (_plusDeltaAngleRatio != value)
+                {
+                    _plusDeltaAngleRatio = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private int _deltaAngleThreshold;
+        public int DeltaAngleThreshold
         {
             get { return _deltaAngleThreshold; }
             set
@@ -619,6 +735,20 @@ namespace ArduinoCodeAssistant.ViewModels
             }
         }
 
+        private int _maximumDeltaAngle;
+        public int MaximumDeltaAngle
+        {
+            get { return _maximumDeltaAngle; }
+            set
+            {
+                if (_maximumDeltaAngle != value)
+                {
+                    _maximumDeltaAngle = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         private bool _isMotionCaptureRunning;
         public bool IsMotionCaptureRunning
         {
@@ -633,7 +763,23 @@ namespace ArduinoCodeAssistant.ViewModels
             }
         }
 
-        private Process _pythonProcess;
+        private string _bluetoothSendInterval;
+        public string BluetoothSendInterval
+        {
+            get { return _bluetoothSendInterval; }
+            set
+            {
+                if (int.TryParse(value, out int newValue) && value != _bluetoothSendInterval)
+                {
+                    _bluetoothSendInterval = newValue.ToString();
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private Process? _pythonProcess;
+        private SerialPort? _btSerialPort;
+        private System.Timers.Timer? _timer;
 
         private ICommand? _showMotionControlPanelCommand;
         public ICommand ShowMotionControlPanelCommand =>
@@ -642,39 +788,94 @@ namespace ArduinoCodeAssistant.ViewModels
                 if (_pythonProcess == null || _pythonProcess.HasExited)
                 {
                     IsMotionCaptureRunning = true;
-                    string pythonFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "hand_tracking.py");
-                    _pythonProcess = new Process();
-                    _pythonProcess.StartInfo.FileName = $@"C:\Users\Administrator\AppData\Local\Programs\Python\Python312\python.exe";
-                    _pythonProcess.StartInfo.Arguments = pythonFile +  $@" ""{MotionControlPanelWidth}"" ""{MotionControlPanelHeight}"" ""{DeltaAngleThreshold}"" ""{SpeedRatioThreshold}""";
-                    _pythonProcess.StartInfo.UseShellExecute = false;
-                    _pythonProcess.StartInfo.RedirectStandardOutput = true;
-                    _pythonProcess.StartInfo.RedirectStandardError = true;
-                    _pythonProcess.StartInfo.CreateNoWindow = true;
 
-                    _pythonProcess.OutputDataReceived += PythonOutputHandler;
-                    StringBuilder errorBuilder = new StringBuilder();
-                    _pythonProcess.ErrorDataReceived += (sender, e) =>
+                    try
                     {
-                        if (!string.IsNullOrEmpty(e.Data))
+                        try
                         {
-                            // 오류 메시지를 수집합니다.
-                            errorBuilder.AppendLine(e.Data);
-                        }
-                    };
+                            _btSerialPort = new SerialPort(BluetoothPort);
+                            _btSerialPort.Open();
 
-                    _pythonProcess.Exited += (sender, e) =>
+                            // Timer 설정
+                            _timer = new System.Timers.Timer(int.Parse(BluetoothSendInterval));
+                            _timer.Elapsed += (sender, e) =>
+                            {
+                                if (_btSerialPort?.IsOpen == true)
+                                {
+                                    _btSerialPort.WriteLine($"{DeltaAngle},{(int)(SpeedRatio * 100)},{MaximumDeltaAngle}");
+                                }
+                            };
+                            _timer.Start();
+                        }
+                        catch (Exception ex)
+                        {
+                            _loggingService.Log("작업 오류: ", LoggingService.LogLevel.Error, ex);
+                        }
+                        
+                        // _serialPort.WriteLine("a");
+
+                        string pythonFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "hand_tracking.py");
+                        _pythonProcess = new Process();
+                        _pythonProcess.StartInfo.FileName = $@"C:\Users\saswt\AppData\Local\Programs\Python\Python312\python.exe";
+                        _pythonProcess.StartInfo.Arguments = pythonFile + $@" ""{MotionControlPanelWidth}"" ""{MotionControlPanelHeight}"" ""{DeltaAngleThreshold}"" ""{SpeedRatioThreshold}""";
+                        _pythonProcess.StartInfo.UseShellExecute = false;
+                        _pythonProcess.StartInfo.RedirectStandardOutput = true;
+                        _pythonProcess.StartInfo.RedirectStandardError = true;
+                        _pythonProcess.StartInfo.CreateNoWindow = true;
+
+                        _pythonProcess.OutputDataReceived += PythonOutputHandler;
+                        StringBuilder errorBuilder = new StringBuilder();
+                        _pythonProcess.ErrorDataReceived += (sender, e) =>
+                        {
+                            if (!string.IsNullOrEmpty(e.Data))
+                            {
+                                // 오류 메시지를 수집합니다.
+                                errorBuilder.AppendLine(e.Data);
+                            }
+                        };
+
+                        _pythonProcess.Exited += (sender, e) =>
+                        {
+                            IsMotionCaptureRunning = false;
+                            string errorMessage = errorBuilder.ToString();
+                            if (!string.IsNullOrEmpty(errorMessage))
+                            {
+                                _loggingService.Log("파이썬 실행 오류:\n" + errorMessage, LoggingService.LogLevel.Error);
+                            }
+                            _timer?.Stop();
+                            _timer?.Dispose();
+                            _timer = null;
+                            if (_btSerialPort?.IsOpen == true)
+                            {
+                                _btSerialPort.WriteLine("0,0,1");
+                            }
+                            _pythonProcess?.Close();
+                            _pythonProcess?.Dispose();
+                            _pythonProcess = null;
+                            _btSerialPort?.Close();
+                            _btSerialPort?.Dispose();
+                            _btSerialPort = null;
+                        };
+
+                        _pythonProcess.EnableRaisingEvents = true;
+                        _pythonProcess.Start();
+                        _pythonProcess.BeginOutputReadLine();
+                        _pythonProcess.BeginErrorReadLine();
+                    }
+                    catch (Exception ex)
                     {
                         IsMotionCaptureRunning = false;
-                        string errorMessage = errorBuilder.ToString();
-                        if (!string.IsNullOrEmpty(errorMessage))
-                        {
-                            _loggingService.Log("파이썬 실행 예외:\n" + errorMessage, LoggingService.LogLevel.Error);
-                        }
-                    };
-                    _pythonProcess.EnableRaisingEvents = true;
-                    _pythonProcess.Start();
-                    _pythonProcess.BeginOutputReadLine();
-                    _pythonProcess.BeginErrorReadLine();
+                        _loggingService.Log("작업 오류: ", LoggingService.LogLevel.Error, ex);
+                        _pythonProcess?.Close();
+                        _pythonProcess?.Dispose();
+                        _pythonProcess = null;
+                        _btSerialPort?.Close();
+                        _btSerialPort?.Dispose();
+                        _btSerialPort = null;
+                        _timer?.Stop();
+                        _timer?.Dispose();
+                        _timer = null;
+                    }
                 }
             });
 
@@ -694,7 +895,7 @@ namespace ArduinoCodeAssistant.ViewModels
                         {
                             // 여기서 WPF의 변수에 값을 저장하거나 UI를 업데이트할 수 있음
                             // 예를 들어, 텍스트 박스에 출력하는 등의 작업을 수행할 수 있음
-                            DeltaAngle = deltaAngle;
+                            DeltaAngle = (int)deltaAngle;
                             SpeedRatio = speedRatio;
                         });
                     }

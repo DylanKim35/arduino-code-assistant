@@ -32,46 +32,37 @@ namespace ArduinoCodeAssistant.Services
 
         public async Task SaveTextStatesAsync(Guid id, string generatedTag, string boardStatus, string requestingMessage, string generatedCode, string generatedDescription)
         {
-            if (string.IsNullOrWhiteSpace(generatedTag) || !TextStatesDictionary.ContainsKey(id))
+            if (!TextStatesDictionary.ContainsKey(id))
             {
                 return;
             }
 
             var state = TextStatesDictionary[id];
-            bool needsUpdate = false;
 
             if (state.Id != id)
             {
                 state.Id = id;
-                needsUpdate = true;
             }
             if (state.GeneratedTag != generatedTag)
             {
                 state.GeneratedTag = generatedTag;
-                needsUpdate = true;
             }
             if (state.BoardStatus != boardStatus)
             {
                 state.BoardStatus = boardStatus;
-                needsUpdate = true;
             }
             if (state.RequestingMessage != requestingMessage)
             {
                 state.RequestingMessage = requestingMessage;
-                needsUpdate = true;
             }
             if (state.GeneratedCode != generatedCode)
             {
                 state.GeneratedCode = generatedCode;
-                needsUpdate = true;
             }
             if (state.GeneratedDescription != generatedDescription)
             {
                 state.GeneratedDescription = generatedDescription;
-                needsUpdate = true;
             }
-
-            if (!needsUpdate) return;
 
             var json = JsonConvert.SerializeObject(TextStatesDictionary, Formatting.Indented);
 
@@ -155,6 +146,7 @@ namespace ArduinoCodeAssistant.Services
             if (TextStatesDictionary.Count == 0 && TextStatesCollection.Count == 0)
             {
                 AddEmptyTemplate();
+                SaveTextStatesAsync(TextStatesCollection.Last().Id, "", "", "", "", "").ConfigureAwait(false);
             }
         }
     }
